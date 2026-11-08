@@ -23,6 +23,13 @@ pub const SUCCESS_TEXT_COLOR: Color32 = Color32::from_rgb(100, 255, 100);
 pub const WARNING_TEXT_COLOR: Color32 = Color32::from_rgb(255, 100, 100);
 pub const CAUTION_TEXT_COLOR: Color32 = Color32::from_rgb(255, 200, 100);
 
+// The color of each fuel rate, and of the pit stop, on all pages and overlays.
+pub const LOW_COLOR: Color32 = Color32::from_rgb(100, 255, 120);
+pub const AVG_COLOR: Color32 = Color32::from_rgb(80, 200, 255);
+pub const PUSH_COLOR: Color32 = Color32::from_rgb(255, 80, 80);
+pub const MAX_COLOR: Color32 = Color32::from_rgb(255, 80, 180);
+pub const PIT_COLOR: Color32 = Color32::from_rgb(255, 200, 50);
+
 /// Font size for the large number on a LAPS LEFT card. The Fuel tab has many cards in one row. An
 /// overlay has only one card, so its number can be larger.
 pub const LAPS_LEFT_SIZE_TAB: f32 = 32.0;
@@ -274,37 +281,45 @@ fn laps_left_margin_text(outcome: &crate::strategy::StrategyOutcome, reserve: f3
     }
 }
 
-pub struct StrategyColors {
-    pub current: Color32,
-    pub low: Color32,
-    pub avg: Color32,
-    pub push: Color32,
-    pub max: Color32,
+/// The name and color of each fuel rate, from the lowest fuel use to the highest.
+const CARD_RATES: [(&str, Color32); 4] = [
+    ("LOW", LOW_COLOR),
+    ("AVG", AVG_COLOR),
+    ("PUSH", PUSH_COLOR),
+    ("MAX", MAX_COLOR),
+];
+
+/// The values of one fuel rate on the fuel to add card. A value of 0 means that the rate is not
+/// known, and the card shows no marker and a dash.
+#[derive(Debug, Clone, Copy)]
+pub struct CardRate {
+    /// Liters to add now to get to the finish at this rate.
+    pub fuel_to_add: f32,
+    pub fuel_per_lap: f32,
+    /// Number of laps that the current fuel is sufficient for at this rate.
+    pub laps_on_fuel: f32,
 }
 
 // Alias for backward compatibility.
 pub type CachedSimResult = SimulationResult;
 
-// Renders the fuel to add card with strategy markers.
+/// Renders the fuel to add card with a marker for each rate. `rates` are in the order LOW, AVG,
+/// PUSH, MAX. The card has the color of the highest rate whose fuel to add is below the fuel that
+/// the pit menu adds.
 pub fn render_fuel_to_add_card(
     ui: &mut egui::Ui,
     pit_sv_fuel: f32,
     fuel_level: f32,
     fuel_capacity: f32,
-    fuel_add_low: f32,
-    fuel_add_avg: f32,
-    fuel_add_push: f32,
-    fuel_add_max: f32,
-    colors: &StrategyColors,
-    fuel_lap_low: f32,
-    fuel_lap_avg: f32,
-    fuel_lap_push: f32,
-    fuel_lap_max: f32,
-    laps_can_go_low: f32,
-    laps_can_go_avg: f32,
-    laps_can_go_push: f32,
-    laps_can_go_max: f32,
+    rates: &[CardRate; 4],
 ) {
+    let current_color = rates
+        .iter()
+        .zip(CARD_RATES)
+        .rev()
+        .find(|(rate, _)| pit_sv_fuel > rate.fuel_to_add)
+        .map_or(Color32::GRAY, |(_, (_, color))| color);
+
     egui::Frame::none()
         .fill(CARD_BACKGROUND_COLOR)
         .inner_margin(egui::Margin {
@@ -322,7 +337,7 @@ pub fn render_fuel_to_add_card(
                     12.0,
                     Color32::GRAY,
                 ));
-                ui.label(num(format!("{:.2} L", pit_sv_fuel), 32.0, colors.current).strong());
+                ui.label(num(format!("{:.2} L", pit_sv_fuel), 32.0, current_color).strong());
 
                 // Current fuel level progress bar
                 ui.add_space(4.0);
@@ -345,7 +360,7 @@ pub fn render_fuel_to_add_card(
                     let fill_width = rect.width() * fuel_level_pct;
                     let fill_rect =
                         egui::Rect::from_min_size(rect.min, egui::vec2(fill_width, rect.height()));
-                    ui.painter().rect_filled(fill_rect, 2.0, colors.current);
+                    ui.painter().rect_filled(fill_rect, 2.0, current_color);
 
                     // Label on the progress bar
                     let text = format!("{:.1} L / {:.1} L", fuel_level, fuel_capacity);
@@ -406,7 +421,7 @@ pub fn render_fuel_to_add_card(
                         bar_rect.min,
                         egui::vec2(fill_width, bar_rect.height()),
                     );
-                    painter.rect_filled(fill_rect, 2.0, colors.current);
+                    painter.rect_filled(fill_rect, 2.0, current_color);
 
                     // Reference lines for LOW, AVG, PUSH and MAX. The markers go below the progress
                     // bar, so use the full rect for them.
@@ -414,48 +429,13 @@ pub fn render_fuel_to_add_card(
                         egui::Rangef::new(bar_rect.bottom(), rect.min.y + total_height);
 
                     if fuel_capacity > 0.0 {
-                        // LOW marker
-                        if fuel_add_low > 0.0 {
-                            let low_x = bar_rect.min.x
-                                + (fuel_add_low / fuel_capacity).min(1.0) * bar_rect.width();
-                            painter.vline(
-                                low_x,
-                                marker_y_range,
-                                egui::Stroke::new(4.0_f32, colors.low),
-                            );
-                        }
-
-                        // AVG marker
-                        if fuel_add_avg > 0.0 {
-                            let avg_x = bar_rect.min.x
-                                + (fuel_add_avg / fuel_capacity).min(1.0) * bar_rect.width();
-                            painter.vline(
-                                avg_x,
-                                marker_y_range,
-                                egui::Stroke::new(4.0_f32, colors.avg),
-                            );
-                        }
-
-                        // PUSH marker
-                        if fuel_add_push > 0.0 {
-                            let push_x = bar_rect.min.x
-                                + (fuel_add_push / fuel_capacity).min(1.0) * bar_rect.width();
-                            painter.vline(
-                                push_x,
-                                marker_y_range,
-                                egui::Stroke::new(4.0_f32, colors.push),
-                            );
-                        }
-
-                        // MAX marker
-                        if fuel_add_max > 0.0 {
-                            let max_x = bar_rect.min.x
-                                + (fuel_add_max / fuel_capacity).min(1.0) * bar_rect.width();
-                            painter.vline(
-                                max_x,
-                                marker_y_range,
-                                egui::Stroke::new(4.0_f32, colors.max),
-                            );
+                        for (rate, (_, color)) in rates.iter().zip(CARD_RATES) {
+                            if rate.fuel_to_add > 0.0 {
+                                let x = bar_rect.min.x
+                                    + (rate.fuel_to_add / fuel_capacity).min(1.0)
+                                        * bar_rect.width();
+                                painter.vline(x, marker_y_range, egui::Stroke::new(4.0_f32, color));
+                            }
                         }
                     }
 
@@ -493,12 +473,9 @@ pub fn render_fuel_to_add_card(
                             // One row for each rate. All values are live telemetry, so they use
                             // `num`, so that the grid columns do not change size when the digits
                             // change.
-                            for (name, laps_can_go, fuel_lap, color) in [
-                                ("LOW", laps_can_go_low, fuel_lap_low, colors.low),
-                                ("AVG", laps_can_go_avg, fuel_lap_avg, colors.avg),
-                                ("PUSH", laps_can_go_push, fuel_lap_push, colors.push),
-                                ("MAX", laps_can_go_max, fuel_lap_max, colors.max),
-                            ] {
+                            for (rate, (name, color)) in rates.iter().zip(CARD_RATES) {
+                                let laps_can_go = rate.laps_on_fuel;
+                                let fuel_lap = rate.fuel_per_lap;
                                 ui.label(RichText::new(name).size(10.0).strong().color(color));
                                 ui.label(num(
                                     dash_or(laps_can_go > 0.0, || format!("{laps_can_go:.1}")),

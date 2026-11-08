@@ -219,13 +219,6 @@ impl eframe::App for FuelApp {
 
         self.frame_count += 1;
 
-        // Custom color palette.
-        let color_push = Color32::from_rgb(255, 80, 80);
-        let color_avg = Color32::from_rgb(80, 200, 255);
-        let color_low = Color32::from_rgb(100, 255, 120);
-        let color_max = Color32::from_rgb(255, 80, 180);
-        let color_pit = Color32::from_rgb(255, 200, 50);
-
         // Calculate the fuel estimates one time in each frame, before the state is locked for
         // rendering.
         let fuel_estimates = {
@@ -340,20 +333,13 @@ impl eframe::App for FuelApp {
                         pages::render_fuel_tab(
                             ui,
                             &state,
-                            color_low,
-                            color_avg,
-                            color_push,
-                            color_max,
-                            color_pit,
                             sim_results,
                             self.overlay_config.extra_liters,
                             self.overlay_config.fuel_tank_pct,
                         );
                     }
                     Tab::Debug => {
-                        pages::render_debug_tab(
-                            ui, &state, color_low, color_avg, color_push, color_max,
-                        );
+                        pages::render_debug_tab(ui, &state);
                     }
                     Tab::Sender => {
                         let sender_state = self.sender_state.lock().unwrap();
@@ -378,27 +364,12 @@ impl eframe::App for FuelApp {
         } // Drop state lock here
 
         // Render the overlay windows. They lock the state again.
-        self.render_overlay_windows(
-            ctx,
-            color_low,
-            color_avg,
-            color_push,
-            color_max,
-            &fuel_estimates,
-        );
+        self.render_overlay_windows(ctx, &fuel_estimates);
     }
 }
 
 impl FuelApp {
-    fn render_overlay_windows(
-        &mut self,
-        ctx: &egui::Context,
-        color_low: Color32,
-        color_avg: Color32,
-        color_push: Color32,
-        color_max: Color32,
-        _fuel_estimates: &FuelEstimates,
-    ) {
+    fn render_overlay_windows(&mut self, ctx: &egui::Context, _fuel_estimates: &FuelEstimates) {
         let state = self.state.lock().unwrap();
 
         // Laps Remaining overlay: a separate viewport (external window).
@@ -524,10 +495,6 @@ impl FuelApp {
                             let response = overlay::render_fuel_to_add_overlay(
                                 ui,
                                 &state,
-                                color_low,
-                                color_avg,
-                                color_push,
-                                color_max,
                                 self.overlay_config.extra_liters,
                                 self.overlay_config.fuel_tank_pct,
                             );
@@ -608,7 +575,6 @@ impl FuelApp {
                             let response = overlay::render_avg_laps_left_overlay(
                                 ui,
                                 &state,
-                                color_avg,
                                 self.overlay_config.extra_liters,
                                 self.overlay_config.fuel_tank_pct,
                             );
@@ -691,7 +657,6 @@ impl FuelApp {
                             let response = overlay::render_push_laps_left_overlay(
                                 ui,
                                 &state,
-                                color_push,
                                 self.overlay_config.extra_liters,
                                 self.overlay_config.fuel_tank_pct,
                             );
@@ -774,7 +739,6 @@ impl FuelApp {
                             let response = overlay::render_low_laps_left_overlay(
                                 ui,
                                 &state,
-                                color_low,
                                 self.overlay_config.extra_liters,
                                 self.overlay_config.fuel_tank_pct,
                             );
@@ -857,7 +821,6 @@ impl FuelApp {
                             let response = overlay::render_max_laps_left_overlay(
                                 ui,
                                 &state,
-                                color_max,
                                 self.overlay_config.extra_liters,
                                 self.overlay_config.fuel_tank_pct,
                             );

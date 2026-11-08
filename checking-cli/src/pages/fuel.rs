@@ -1,3 +1,4 @@
+use super::{AVG_COLOR, LOW_COLOR, MAX_COLOR, PIT_COLOR, PUSH_COLOR};
 use checking_fuel::AppState;
 use eframe::egui;
 use egui::{Color32, RichText};
@@ -259,11 +260,6 @@ fn render_stint_timeline(ui: &mut egui::Ui, rows: &[StintRow], total_laps: i32, 
 pub fn render_fuel_tab(
     ui: &mut egui::Ui,
     state: &AppState,
-    color_low: Color32,
-    color_avg: Color32,
-    color_push: Color32,
-    color_max: Color32,
-    color_pit: Color32,
     sim_results: Option<&[super::CachedSimResult; 4]>, // [LOW, AVG, PUSH, MAX]
     extra_liters: f32,
     fuel_tank_pct: Option<f32>,
@@ -385,42 +381,24 @@ pub fn render_fuel_tab(
                 ui.add_space(8.0);
 
                 // Fuel to Add.
-                let color = if pit_sv_fuel > fuel_add_max {
-                    color_max
-                } else if pit_sv_fuel > fuel_add_push {
-                    color_push
-                } else if pit_sv_fuel > fuel_add_avg {
-                    color_avg
-                } else if pit_sv_fuel > fuel_add_low {
-                    color_low
-                } else {
-                    Color32::GRAY
+                let card_rate = |fuel_to_add, fuel_per_lap: Option<f32>, laps_on_fuel| {
+                    super::CardRate {
+                        fuel_to_add,
+                        fuel_per_lap: fuel_per_lap.unwrap_or(0.0),
+                        laps_on_fuel,
+                    }
                 };
-
                 super::render_fuel_to_add_card(
                     ui,
                     pit_sv_fuel,
                     state.latest_frame.fuel_level,
                     fuel_capacity,
-                    fuel_add_low,
-                    fuel_add_avg,
-                    fuel_add_push,
-                    fuel_add_max,
-                    &super::StrategyColors {
-                        current: color,
-                        low: color_low,
-                        avg: color_avg,
-                        push: color_push,
-                        max: color_max,
-                    },
-                    low_5_green.unwrap_or(0.0),
-                    avg_10_green.unwrap_or(0.0),
-                    avg_5_push.unwrap_or(0.0),
-                    max_single.unwrap_or(0.0),
-                    laps_low,
-                    laps_avg,
-                    laps_push,
-                    laps_max,
+                    &[
+                        card_rate(fuel_add_low, low_5_green, laps_low),
+                        card_rate(fuel_add_avg, avg_10_green, laps_avg),
+                        card_rate(fuel_add_push, avg_5_push, laps_push),
+                        card_rate(fuel_add_max, max_single, laps_max),
+                    ],
                 );
 
             });
@@ -434,10 +412,10 @@ pub fn render_fuel_tab(
                 // One function makes the four cards. The overlay LAPS LEFT cards use a different
                 // function, because they show the fuel margin and do not show the pit line.
                 for (label, outcome, color, pit_color) in [
-                    ("LAPS LEFT (AVG)", out_avg, color_avg, CAUTION_TEXT_COLOR),
-                    ("LAPS LEFT (PUSH)", out_push, color_push, PUSH_TEXT_COLOR),
-                    ("LAPS LEFT (LOW)", out_low, color_low, LOW_TEXT_COLOR),
-                    ("LAPS LEFT (MAX)", out_max, color_max, MAX_TEXT_COLOR),
+                    ("LAPS LEFT (AVG)", out_avg, AVG_COLOR, CAUTION_TEXT_COLOR),
+                    ("LAPS LEFT (PUSH)", out_push, PUSH_COLOR, PUSH_TEXT_COLOR),
+                    ("LAPS LEFT (LOW)", out_low, LOW_COLOR, LOW_TEXT_COLOR),
+                    ("LAPS LEFT (MAX)", out_max, MAX_COLOR, MAX_TEXT_COLOR),
                 ] {
                     ui.add_space(8.0);
                     egui::Frame::none()
@@ -469,17 +447,17 @@ pub fn render_fuel_tab(
                 for (text, color) in [
                     (
                         format!("LOW: {low_str} ({low_lap_count} laps)"),
-                        color_low,
+                        LOW_COLOR,
                     ),
                     (
                         format!("AVG: {avg_str} ({avg_lap_count} laps)"),
-                        color_avg,
+                        AVG_COLOR,
                     ),
                     (
                         format!("PUSH: {push_str} ({push_lap_count} laps)"),
-                        color_push,
+                        PUSH_COLOR,
                     ),
-                    (format!("MAX: {max_str} (1 lap)"), color_max),
+                    (format!("MAX: {max_str} (1 lap)"), MAX_COLOR),
                 ] {
                     ui.add_space(8.0);
                     ui.label(super::num(text, 14.0, color));
@@ -647,7 +625,7 @@ pub fn render_fuel_tab(
                                     .into();
                                     plot_ui.line(
                                         Line::new(low_points)
-                                            .color(color_low)
+                                            .color(LOW_COLOR)
                                             .width(2.5_f32)
                                             .style(egui_plot::LineStyle::dashed_loose())
                                             .name(format!("LOW {:.3}L", low)),
@@ -662,7 +640,7 @@ pub fn render_fuel_tab(
                                     .into();
                                     plot_ui.line(
                                         Line::new(avg_points)
-                                            .color(color_avg)
+                                            .color(AVG_COLOR)
                                             .width(2.5_f32)
                                             .style(egui_plot::LineStyle::dashed_loose())
                                             .name(format!("AVG {:.3}L", avg)),
@@ -677,7 +655,7 @@ pub fn render_fuel_tab(
                                     .into();
                                     plot_ui.line(
                                         Line::new(push_points)
-                                            .color(color_push)
+                                            .color(PUSH_COLOR)
                                             .width(2.5_f32)
                                             .style(egui_plot::LineStyle::dashed_loose())
                                             .name(format!("PUSH {:.3}L", push)),
@@ -692,7 +670,7 @@ pub fn render_fuel_tab(
                                     .into();
                                     plot_ui.line(
                                         Line::new(max_points)
-                                            .color(color_max)
+                                            .color(MAX_COLOR)
                                             .width(2.5_f32)
                                             .style(egui_plot::LineStyle::dashed_loose())
                                             .name(format!("MAX {:.3}L", max)),
@@ -704,7 +682,7 @@ pub fn render_fuel_tab(
                                 for pit_lap in pit_stops {
                                     plot_ui.vline(
                                         VLine::new(pit_lap as f64)
-                                            .color(color_pit)
+                                            .color(PIT_COLOR)
                                             .width(3.0_f32)
                                             .name("⚑ PIT"),
                                     );
@@ -784,10 +762,10 @@ pub fn render_fuel_tab(
                         // above it.
                         let mut rows: Vec<StintRow> = Vec::new();
                         let colored = [
-                            ("LOW", out_low, color_low, 0),
-                            ("AVG", out_avg, color_avg, 1),
-                            ("PUSH", out_push, color_push, 2),
-                            ("MAX", out_max, color_max, 3),
+                            ("LOW", out_low, LOW_COLOR, 0),
+                            ("AVG", out_avg, AVG_COLOR, 1),
+                            ("PUSH", out_push, PUSH_COLOR, 2),
+                            ("MAX", out_max, MAX_COLOR, 3),
                         ];
 
                         for (name, outcome, color, cache_idx) in colored {
@@ -943,11 +921,11 @@ pub fn render_fuel_tab(
                                     };
 
                                     let color = if is_push {
-                                        color_push
+                                        PUSH_COLOR
                                     } else if is_avg {
-                                        color_avg
+                                        AVG_COLOR
                                     } else if is_low {
-                                        color_low
+                                        LOW_COLOR
                                     } else {
                                         Color32::WHITE
                                     };

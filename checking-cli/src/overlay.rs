@@ -5,6 +5,7 @@ use egui::{Color32, RichText};
 
 use crate::config::{MinimapMode, RadarOverlayConfig, RelativeOverlayConfig};
 use crate::pages;
+use crate::pages::{AVG_COLOR, LOW_COLOR, MAX_COLOR, PUSH_COLOR};
 use crate::radar::{RadarTarget, analyze_radar, bar_bounds_px};
 use crate::relative::relative_gap;
 
@@ -55,10 +56,6 @@ pub fn render_laps_remaining_overlay(ui: &mut egui::Ui, state: &AppState) -> egu
 pub fn render_fuel_to_add_overlay(
     ui: &mut egui::Ui,
     state: &AppState,
-    color_low: Color32,
-    color_avg: Color32,
-    color_push: Color32,
-    color_max: Color32,
     extra_liters: f32,
     fuel_tank_pct: Option<f32>,
 ) -> egui::Response {
@@ -99,29 +96,17 @@ pub fn render_fuel_to_add_overlay(
     let fuel_capacity =
         pages::get_effective_fuel_capacity(state.get_fuel_capacity(), fuel_tank_pct);
 
-    let color = if pit_sv_fuel > fuel_add_max {
-        color_max
-    } else if pit_sv_fuel > fuel_add_push {
-        color_push
-    } else if pit_sv_fuel > fuel_add_avg {
-        color_avg
-    } else if pit_sv_fuel > fuel_add_low {
-        color_low
-    } else {
-        Color32::GRAY
+    let card_rate = |fuel_to_add: f32, fuel_per_lap: Option<f32>| pages::CardRate {
+        fuel_to_add,
+        fuel_per_lap: fuel_per_lap.unwrap_or(0.0),
+        laps_on_fuel: fuel_per_lap.map_or(0.0, |rate| state.laps_remaining(rate)),
     };
-
-    // Fuel per lap for each strategy.
-    let fuel_lap_low = low_5_green.unwrap_or(0.0);
-    let fuel_lap_avg = avg_10_green.unwrap_or(0.0);
-    let fuel_lap_push = avg_5_push.unwrap_or(0.0);
-    let fuel_lap_max = max_single.unwrap_or(0.0);
-
-    // Number of laps that the current fuel is sufficient for, for each strategy.
-    let laps_can_go_low = low_5_green.map_or(0.0, |low| state.laps_remaining(low));
-    let laps_can_go_avg = avg_10_green.map_or(0.0, |avg| state.laps_remaining(avg));
-    let laps_can_go_push = avg_5_push.map_or(0.0, |push| state.laps_remaining(push));
-    let laps_can_go_max = max_single.map_or(0.0, |max| state.laps_remaining(max));
+    let rates = [
+        card_rate(fuel_add_low, low_5_green),
+        card_rate(fuel_add_avg, avg_10_green),
+        card_rate(fuel_add_push, avg_5_push),
+        card_rate(fuel_add_max, max_single),
+    ];
 
     let frame_response = egui::Frame::none()
         .outer_margin(egui::Margin::symmetric(1.0, 1.0))
@@ -131,25 +116,7 @@ pub fn render_fuel_to_add_overlay(
                 pit_sv_fuel,
                 state.latest_frame.fuel_level,
                 fuel_capacity,
-                fuel_add_low,
-                fuel_add_avg,
-                fuel_add_push,
-                fuel_add_max,
-                &pages::StrategyColors {
-                    current: color,
-                    low: color_low,
-                    avg: color_avg,
-                    push: color_push,
-                    max: color_max,
-                },
-                fuel_lap_low,
-                fuel_lap_avg,
-                fuel_lap_push,
-                fuel_lap_max,
-                laps_can_go_low,
-                laps_can_go_avg,
-                laps_can_go_push,
-                laps_can_go_max,
+                &rates,
             );
         });
 
@@ -230,7 +197,6 @@ fn render_laps_left_overlay(
 pub fn render_avg_laps_left_overlay(
     ui: &mut egui::Ui,
     state: &AppState,
-    color_avg: Color32,
     extra_liters: f32,
     _fuel_tank_pct: Option<f32>,
 ) -> egui::Response {
@@ -240,7 +206,7 @@ pub fn render_avg_laps_left_overlay(
         state,
         "LAPS LEFT (AVG)",
         state.avg_fuel_pct_of_total(total_laps),
-        color_avg,
+        AVG_COLOR,
         extra_liters,
         "drag",
     )
@@ -249,7 +215,6 @@ pub fn render_avg_laps_left_overlay(
 pub fn render_push_laps_left_overlay(
     ui: &mut egui::Ui,
     state: &AppState,
-    color_push: Color32,
     extra_liters: f32,
     _fuel_tank_pct: Option<f32>,
 ) -> egui::Response {
@@ -259,7 +224,7 @@ pub fn render_push_laps_left_overlay(
         state,
         "LAPS LEFT (PUSH)",
         state.avg_fuel_push_pct_of_total(total_laps),
-        color_push,
+        PUSH_COLOR,
         extra_liters,
         "drag_push",
     )
@@ -268,7 +233,6 @@ pub fn render_push_laps_left_overlay(
 pub fn render_low_laps_left_overlay(
     ui: &mut egui::Ui,
     state: &AppState,
-    color_low: Color32,
     extra_liters: f32,
     _fuel_tank_pct: Option<f32>,
 ) -> egui::Response {
@@ -278,7 +242,7 @@ pub fn render_low_laps_left_overlay(
         state,
         "LAPS LEFT (LOW)",
         state.avg_fuel_low_pct_of_total(total_laps),
-        color_low,
+        LOW_COLOR,
         extra_liters,
         "drag_low",
     )
@@ -287,7 +251,6 @@ pub fn render_low_laps_left_overlay(
 pub fn render_max_laps_left_overlay(
     ui: &mut egui::Ui,
     state: &AppState,
-    color_max: Color32,
     extra_liters: f32,
     _fuel_tank_pct: Option<f32>,
 ) -> egui::Response {
@@ -296,7 +259,7 @@ pub fn render_max_laps_left_overlay(
         state,
         "LAPS LEFT (MAX)",
         state.max_fuel_usage(),
-        color_max,
+        MAX_COLOR,
         extra_liters,
         "drag_max",
     )
@@ -352,12 +315,7 @@ pub fn render_relative_overlay(
                                     .show(ui, |ui| {
                                         for &driver in &relative_drivers {
                                             render_driver_row(
-                                                ui,
-                                                driver,
-                                                player_idx,
-                                                &config.buddy_list,
-                                                &config.warning_list,
-                                                None,
+                                                ui, driver, player_idx, config, None,
                                                 0, // No lap difference without the player.
                                                 state,
                                             );
@@ -450,8 +408,7 @@ pub fn render_relative_overlay(
                                         ui,
                                         driver,
                                         player_idx,
-                                        &config.buddy_list,
-                                        &config.warning_list,
+                                        config,
                                         Some(time_delta),
                                         lap_diff,
                                         state,
@@ -561,15 +518,14 @@ fn render_driver_row(
     ui: &mut egui::Ui,
     driver: &DriverInfo,
     player_idx: i32,
-    buddy_list: &[String],
-    warning_list: &[String],
+    config: &RelativeOverlayConfig,
     delta: Option<f32>,
     lap_diff: i32,
     state: &AppState,
 ) {
     let is_player = driver.car_idx == player_idx;
-    let is_buddy = buddy_list.contains(&driver.get_user_name());
-    let is_warning = warning_list.contains(&driver.get_user_name());
+    let is_buddy = config.buddy_list.contains(&driver.get_user_name());
+    let is_warning = config.warning_list.contains(&driver.get_user_name());
 
     // Lap status for the color, from the real lap difference.
     let is_lapped_down = lap_diff <= -1; // 1+ laps behind player

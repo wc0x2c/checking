@@ -1,3 +1,4 @@
+use super::{AVG_COLOR, LOW_COLOR, MAX_COLOR, PUSH_COLOR};
 use checking_fuel::AppState;
 use eframe::egui;
 use egui::{Color32, RichText};
@@ -7,14 +8,7 @@ use egui_plot::{Line, Plot, PlotPoints, VLine};
 /// caption ("DriverCarFuelMaxLtr (SDK):"), so that the values align.
 const DEBUG_LABEL_COL_WIDTH: f32 = 190.0;
 
-pub fn render_debug_tab(
-    ui: &mut egui::Ui,
-    state: &AppState,
-    color_low: Color32,
-    color_avg: Color32,
-    color_push: Color32,
-    color_max: Color32,
-) {
+pub fn render_debug_tab(ui: &mut egui::Ui, state: &AppState) {
     egui::ScrollArea::vertical()
         .auto_shrink([false, false])
         .show(ui, |ui| {
@@ -103,10 +97,10 @@ pub fn render_debug_tab(
                             .name("Actual"),
                     );
 
-                    plot_ui.line(Line::new(low_points).color(color_low).name("LOW"));
-                    plot_ui.line(Line::new(avg_points).color(color_avg).name("AVG"));
-                    plot_ui.line(Line::new(push_points).color(color_push).name("PUSH"));
-                    plot_ui.line(Line::new(max_points).color(color_max).name("MAX"));
+                    plot_ui.line(Line::new(low_points).color(LOW_COLOR).name("LOW"));
+                    plot_ui.line(Line::new(avg_points).color(AVG_COLOR).name("AVG"));
+                    plot_ui.line(Line::new(push_points).color(PUSH_COLOR).name("PUSH"));
+                    plot_ui.line(Line::new(max_points).color(MAX_COLOR).name("MAX"));
 
                     // Add yellow flag indicators for yellow laps
                     for x in &yellow_laps {
