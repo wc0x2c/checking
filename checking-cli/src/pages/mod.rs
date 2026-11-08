@@ -590,9 +590,6 @@ mod tests {
         crate::strategy::StrategyOutcome {
             label: "AVG".to_string(),
             fuel_per_lap: 2.5,
-            stops: if pit_lap.is_some() { 1 } else { 0 },
-            can_finish: true,
-            fuel_margin: 0.0,
             margin_without_stopping: margin,
             finishes_without_stopping: finishes,
             laps_on_current_fuel: 12.3,

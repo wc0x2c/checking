@@ -116,7 +116,6 @@ struct SimulationCacheKey {
 // Fuel estimates cache. The app calculates it one time in each frame, and all pages use it.
 #[derive(Debug, Clone)]
 struct FuelEstimates {
-    total_laps: i32,
     low_fuel_per_lap: Option<f32>,
     avg_fuel_per_lap: Option<f32>,
     push_fuel_per_lap: Option<f32>,
@@ -243,7 +242,6 @@ impl eframe::App for FuelApp {
             if needs_recompute {
                 let total_laps = state.get_effective_total_laps();
                 let estimates = FuelEstimates {
-                    total_laps,
                     low_fuel_per_lap: state.avg_fuel_low_pct_of_total(total_laps),
                     avg_fuel_per_lap: state.avg_fuel_pct_of_total(total_laps),
                     push_fuel_per_lap: state.avg_fuel_push_pct_of_total(total_laps),

@@ -5,10 +5,6 @@ use egui_extras::{Column, TableBuilder};
 use egui_plot::{Line, Plot, PlotPoints, VLine};
 
 // Color constants
-const AVG_BACKGROUND_COLOR: Color32 = Color32::from_rgb(30, 50, 60);
-const PUSH_BACKGROUND_COLOR: Color32 = Color32::from_rgb(60, 30, 30);
-const LOW_BACKGROUND_COLOR: Color32 = Color32::from_rgb(30, 60, 30);
-const MAX_BACKGROUND_COLOR: Color32 = Color32::from_rgb(50, 20, 40);
 const WARNING_BACKGROUND_COLOR: Color32 = Color32::from_rgb(80, 20, 20);
 const SUCCESS_BACKGROUND_COLOR: Color32 = Color32::from_rgb(20, 60, 30);
 const CAUTION_BACKGROUND_COLOR: Color32 = Color32::from_rgb(60, 50, 20);
