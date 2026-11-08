@@ -1,0 +1,27 @@
+[workspace]
+members = [
+    "crates/checking-protocol",
+    "crates/checking-fuel",
+    "crates/checking-iracingio",
+    "checking",
+]
+resolver = "3"
+
+[workspace.package]
+version = "0.1.0"
+authors = ["wc0x2c <wc0x2c@gmail.com>"]
+license = "MIT OR Apache-2.0"
+edition = "2024"
+repository = "https://github.com/wc0x2c/checking"
+rust-version = "1.90"
+
+[workspace.dependencies]
+tokio = { version = "1.45", features = ["full"] }
+tokio-util = { version = "0.7", features = ["codec"] }
+anyhow = "1.0"
+deku = "0.20"
+
+[profile.release]
+# Make the binaries smaller.
+strip = true
+lto = true

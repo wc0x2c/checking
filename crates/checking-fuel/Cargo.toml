@@ -1,0 +1,16 @@
+[package]
+name = "checking-fuel"
+description = "Fuel strategy calculations"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+bench = false
+
+[dependencies]
+checking-protocol = { path = "../checking-protocol", version = "0.1.0" }
+chrono = { version = "0.4", features = ["serde"] }

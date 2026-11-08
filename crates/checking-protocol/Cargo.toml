@@ -1,0 +1,15 @@
+[package]
+name = "checking-protocol"
+description = "Wire format of the telemetry frames that the sender sends to the GUI"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+bench = false
+
+[dependencies]
+deku = { workspace = true }

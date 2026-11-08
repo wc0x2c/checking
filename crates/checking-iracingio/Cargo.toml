@@ -1,0 +1,30 @@
+[package]
+name = "checking-iracingio"
+description = "Read iRacing telemetry from shared memory and send it over TCP"
+version.workspace = true
+authors.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+
+[lib]
+bench = false
+
+[dependencies]
+checking-protocol = { path = "../checking-protocol", version = "0.1.0" }
+checking-fuel = { path = "../checking-fuel", version = "0.1.0" }
+anyhow = { workspace = true }
+bytes = "1.5"
+deku = { workspace = true }
+futures = "0.3"
+tokio = { workspace = true }
+tokio-util = { workspace = true }
+serde = { version = "1.0", features = ["derive"] }
+serde_yaml = "0.9"
+
+[target.'cfg(windows)'.dependencies]
+windows = { version = "0.52", features = [
+    "Win32_Foundation",
+    "Win32_System_Memory",
+] }

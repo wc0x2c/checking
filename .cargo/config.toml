@@ -1,0 +1,7 @@
+[target.x86_64-pc-windows-gnu]
+# Windows link flags. These flags work in the stock cross image and in the
+# custom image. They link the C runtime statically.
+rustflags = [
+    "-C", "target-feature=+crt-static",
+    "-C", "link-arg=-static",
+]

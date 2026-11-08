@@ -1,0 +1,4 @@
+# Stock cross image. The `windows` just recipe overrides this image with
+# CROSS_TARGET_X86_64_PC_WINDOWS_GNU_IMAGE. See the comment in that recipe.
+[target.x86_64-pc-windows-gnu]
+image = "ghcr.io/cross-rs/x86_64-pc-windows-gnu:latest"
