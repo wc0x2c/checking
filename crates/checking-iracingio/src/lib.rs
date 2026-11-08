@@ -86,10 +86,11 @@ pub async fn run_sender_loop(sender_state: Arc<Mutex<SenderState>>) {
                     break client;
                 }
                 Err(e) => {
-                    let mut state = sender_state.lock().unwrap();
-                    state.status = SenderStatus::Error(format!("iRacing not running: {}", e));
-                    state.last_error = Some(format!("iRacing connection failed: {}", e));
-                    drop(state);
+                    {
+                        let mut state = sender_state.lock().unwrap();
+                        state.status = SenderStatus::Error(format!("iRacing not running: {}", e));
+                        state.last_error = Some(format!("iRacing connection failed: {}", e));
+                    }
                     sleep(Duration::from_secs(5)).await;
                 }
             }
@@ -117,10 +118,12 @@ pub async fn run_sender_loop(sender_state: Arc<Mutex<SenderState>>) {
         let stream = match TcpStream::connect(&target).await {
             Ok(s) => s,
             Err(e) => {
-                let mut state = sender_state.lock().unwrap();
-                state.status = SenderStatus::Error(format!("Failed to connect to receiver: {}", e));
-                state.last_error = Some(format!("Receiver connection failed: {}", e));
-                drop(state);
+                {
+                    let mut state = sender_state.lock().unwrap();
+                    state.status =
+                        SenderStatus::Error(format!("Failed to connect to receiver: {}", e));
+                    state.last_error = Some(format!("Receiver connection failed: {}", e));
+                }
                 sleep(Duration::from_secs(5)).await;
                 continue;
             }
@@ -232,26 +235,26 @@ fn parse_track_length_from_yaml(yaml: &str) -> f32 {
     // The line is, for example, `TrackLength: 3.50 km` under `WeekendInfo:`.
     for line in yaml.lines() {
         let trimmed = line.trim();
-        if trimmed.starts_with("TrackLength:") {
-            if let Some(value_str) = trimmed.strip_prefix("TrackLength:") {
-                let value_str = value_str.trim().trim_matches('\'').trim_matches('"');
+        if trimmed.starts_with("TrackLength:")
+            && let Some(value_str) = trimmed.strip_prefix("TrackLength:")
+        {
+            let value_str = value_str.trim().trim_matches('\'').trim_matches('"');
 
-                let parts: Vec<&str> = value_str.split_whitespace().collect();
-                if parts.is_empty() {
-                    continue;
-                }
+            let parts: Vec<&str> = value_str.split_whitespace().collect();
+            if parts.is_empty() {
+                continue;
+            }
 
-                if let Ok(value) = parts[0].parse::<f32>() {
-                    let unit = parts.get(1).map(|s| s.to_lowercase()).unwrap_or_default();
+            if let Ok(value) = parts[0].parse::<f32>() {
+                let unit = parts.get(1).map(|s| s.to_lowercase()).unwrap_or_default();
 
-                    if unit.contains("km") {
-                        return value * 1000.0;
-                    } else if unit.contains("mi") {
-                        return value * 1609.344;
-                    } else {
-                        // No unit means meters.
-                        return value;
-                    }
+                if unit.contains("km") {
+                    return value * 1000.0;
+                } else if unit.contains("mi") {
+                    return value * 1609.344;
+                } else {
+                    // No unit means meters.
+                    return value;
                 }
             }
         }
@@ -266,7 +269,6 @@ fn parse_track_length_from_yaml(yaml: &str) -> f32 {
 fn extract_drivers(
     irsdk: &IrSdkClient,
     data: &[u8],
-    player_car_idx: i32,
     pit_tracker: &mut PitTracker,
 ) -> (Vec<DriverInfo>, Option<String>) {
     let session_yaml = match irsdk.get_session_info() {
@@ -347,10 +349,8 @@ fn extract_drivers(
             &session_driver.car_number,
             &session_driver.lic_string,
             session_driver.irating,
-            position,
-            lap,
-            lap_dist_pct,
-        );
+        )
+        .with_track_position(position, lap, lap_dist_pct);
 
         driver_info.car_class_id = session_driver.car_class_id;
         driver_info.class_position = class_position;
@@ -553,15 +553,15 @@ fn extract_telemetry(
         drivers: vec![],
     };
 
-    let (drivers, error) = extract_drivers(irsdk, data, frame.player_car_idx, pit_tracker);
+    let (drivers, error) = extract_drivers(irsdk, data, pit_tracker);
     frame.drivers = drivers;
     frame.driver_count = frame.drivers.len();
 
-    if let Some(err_msg) = error {
-        if frame.drivers.is_empty() {
-            // Fail only if there are no drivers. The sender loop records the error.
-            return Err(anyhow::anyhow!("Cannot get the driver data: {}", err_msg));
-        }
+    if let Some(err_msg) = error
+        && frame.drivers.is_empty()
+    {
+        // Fail only if there are no drivers. The sender loop records the error.
+        return Err(anyhow::anyhow!("Cannot get the driver data: {}", err_msg));
     }
 
     Ok(frame)

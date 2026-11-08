@@ -18,9 +18,9 @@ const IRSDK_MAX_STRING: usize = 32;
 #[derive(Debug, Clone, DekuRead)]
 #[deku(endian = "little")]
 struct Header {
-    version: i32,
+    _version: i32,
     status: i32,
-    tick_rate: i32,
+    _tick_rate: i32,
     session_info_update: i32,
     session_info_len: i32,
     session_info_offset: i32,
@@ -46,18 +46,18 @@ struct VarBuf {
 #[derive(Debug, Clone, DekuRead)]
 #[deku(endian = "little")]
 struct VarHeader {
-    var_type: i32,     // offset 0, 4 bytes
-    offset: i32,       // offset 4, 4 bytes
-    count: i32,        // offset 8, 4 bytes
-    count_as_time: u8, // offset 12, 1 byte (bool in C)
+    var_type: i32,      // offset 0, 4 bytes
+    offset: i32,        // offset 4, 4 bytes
+    count: i32,         // offset 8, 4 bytes
+    _count_as_time: u8, // offset 12, 1 byte (bool in C)
     #[deku(count = "3")]
     _pad: Vec<u8>, // offset 13, 3 bytes padding
     #[deku(count = "IRSDK_MAX_STRING")]
     name: Vec<u8>, // offset 16, 32 bytes
     #[deku(count = "64")]
-    desc: Vec<u8>, // offset 48, 64 bytes
+    _desc: Vec<u8>, // offset 48, 64 bytes
     #[deku(count = "IRSDK_MAX_STRING")]
-    unit: Vec<u8>, // offset 112, 32 bytes
+    _unit: Vec<u8>, // offset 112, 32 bytes
 }
 
 // Variable types (irsdk_VarType).
@@ -74,7 +74,6 @@ const IRSDK_DOUBLE: i32 = 5;
 pub struct IrSdkClient {
     file_mapping: HANDLE,
     shared_mem: MEMORY_MAPPED_VIEW_ADDRESS,
-    mem_size: usize,
 }
 
 impl IrSdkClient {
@@ -97,7 +96,6 @@ impl IrSdkClient {
             Ok(Self {
                 file_mapping,
                 shared_mem,
-                mem_size: 1164 * 1024, // iRacing uses a fixed size of 1164 KB.
             })
         }
     }
@@ -145,7 +143,10 @@ impl IrSdkClient {
         // The header is 112 bytes: 10 i32s, 2 padding i32s and 4 VarBufs of 4 i32s.
         // This reads 4 more bytes (11 i32s). Deku reads only the first 112.
         let header_size = 11 * 4 + 2 * 4 + IRSDK_MAX_BUFS * 4 * 4;
-        let data = slice::from_raw_parts(self.shared_mem.Value as *const u8, header_size);
+        // SAFETY: The caller makes sure that the shared memory is mapped. The mapping is larger
+        // than the header.
+        let data =
+            unsafe { slice::from_raw_parts(self.shared_mem.Value as *const u8, header_size) };
         let (_, header) = Header::from_bytes((data, 0)).expect("cannot parse the iRacing header");
         header
     }
@@ -212,60 +213,6 @@ impl IrSdkClient {
             }
 
             Err(anyhow!("Variable '{}' not found", name))
-        }
-    }
-
-    pub fn list_all_variables(&self) {
-        unsafe {
-            let header = self.read_header();
-            let var_header_offset = header.var_header_offset as usize;
-            let num_vars = header.num_vars as usize;
-
-            println!("=== iRacing SDK Info ===");
-            println!("Version: {}", header.version);
-            println!("Status: {}", header.status);
-            println!("TickRate: {}", header.tick_rate);
-            println!("NumVars: {}", num_vars);
-            println!("NumBuf: {}", header.num_buf);
-            println!("BufLen: {}", header.buf_len);
-            println!();
-
-            println!("=== Available iRacing Variables ({}) ===", num_vars);
-            println!("VarHeader size: 144 bytes");
-
-            const VAR_HEADER_SIZE: usize = 144;
-
-            for i in 0..num_vars.min(30) {
-                let var_offset = var_header_offset + (i * VAR_HEADER_SIZE);
-                let var_data = slice::from_raw_parts(
-                    (self.shared_mem.Value as *const u8).add(var_offset),
-                    VAR_HEADER_SIZE,
-                );
-
-                if let Ok((_, var)) = VarHeader::from_bytes((var_data, 0)) {
-                    let var_name = std::str::from_utf8(&var.name)
-                        .unwrap_or("")
-                        .trim_end_matches('\0');
-
-                    let type_str = match var.var_type {
-                        IRSDK_CHAR => "char",
-                        IRSDK_BOOL => "bool",
-                        IRSDK_INT => "int",
-                        IRSDK_BITFIELD => "bitfield",
-                        IRSDK_FLOAT => "float",
-                        IRSDK_DOUBLE => "double",
-                        _ => "unknown",
-                    };
-
-                    println!(
-                        "  [{:3}] {} (type={}, offset={}, count={})",
-                        i, var_name, type_str, var.offset, var.count
-                    );
-                }
-            }
-            if num_vars > 30 {
-                println!("  ... and {} more variables", num_vars - 30);
-            }
         }
     }
 

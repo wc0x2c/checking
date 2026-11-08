@@ -24,9 +24,11 @@ test *args: build
 quick-test *args: build
     cargo nextest run --release {{args}}
 
+# The iRacing sender compiles only for Windows, so lint that target too.
 lint:
     cargo fmt
     cargo clippy --all-targets -- -D warnings
+    cargo clippy --target {{windows_target}} --all-targets -- -D warnings
 
 # Cargo publishes each crate after the crates it needs. Give `--dry-run` to
 # check without upload.

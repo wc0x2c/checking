@@ -37,3 +37,9 @@ jobs:
         run: cargo fmt --check
       - name: Lint
         run: cargo clippy --all-targets -- -D warnings
+      # The iRacing sender compiles only for Windows. The C parts of some
+      # dependencies need the mingw compiler.
+      - name: Install mingw
+        run: sudo apt-get update && sudo apt-get install --yes gcc-mingw-w64-x86-64
+      - name: Lint for Windows
+        run: cargo clippy --target x86_64-pc-windows-gnu --all-targets -- -D warnings
