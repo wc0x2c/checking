@@ -1,14 +1,14 @@
 #![cfg(windows)]
 
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use deku::prelude::*;
 use std::ffi::CString;
 use std::slice;
-use windows::core::PCSTR;
 use windows::Win32::Foundation::{CloseHandle, HANDLE};
 use windows::Win32::System::Memory::{
-    MapViewOfFile, OpenFileMappingA, UnmapViewOfFile, FILE_MAP_READ, MEMORY_MAPPED_VIEW_ADDRESS,
+    FILE_MAP_READ, MEMORY_MAPPED_VIEW_ADDRESS, MapViewOfFile, OpenFileMappingA, UnmapViewOfFile,
 };
+use windows::core::PCSTR;
 
 const IRSDK_MEMMAPFILENAME: &str = "Local\\IRSDKMemMapFileName";
 const IRSDK_MAX_BUFS: usize = 4;

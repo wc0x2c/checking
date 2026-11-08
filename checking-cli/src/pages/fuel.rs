@@ -1,8 +1,8 @@
+use checking_fuel::AppState;
 use eframe::egui;
 use egui::{Color32, RichText};
 use egui_extras::{Column, TableBuilder};
 use egui_plot::{Line, Plot, PlotPoints, VLine};
-use checking_fuel::AppState;
 
 // Color constants
 const AVG_BACKGROUND_COLOR: Color32 = Color32::from_rgb(30, 50, 60);
@@ -76,7 +76,7 @@ struct StintRow {
 /// answer is a comparison between rows. On a shared lap axis, the answer is the row where the
 /// number of segments changes. This is easier to see than in a column of stop counts.
 fn render_stint_timeline(ui: &mut egui::Ui, rows: &[StintRow], total_laps: i32, current_lap: f32) {
-    use egui::{pos2, Align2, FontId, Rect, Sense, Stroke, Vec2};
+    use egui::{Align2, FontId, Rect, Sense, Stroke, Vec2, pos2};
 
     if total_laps <= 0 {
         return;
@@ -198,7 +198,7 @@ fn render_stint_timeline(ui: &mut egui::Ui, rows: &[StintRow], total_laps: i32, 
                 let x = lap_x(*lap as f32);
                 painter.line_segment(
                     [pos2(x, bar_top - 3.0), pos2(x, bar_top + BAR_H + 3.0)],
-                    Stroke::new(2.0, CAUTION_BORDER_COLOR),
+                    Stroke::new(2.0_f32, CAUTION_BORDER_COLOR),
                 );
             }
         }
@@ -228,7 +228,7 @@ fn render_stint_timeline(ui: &mut egui::Ui, rows: &[StintRow], total_laps: i32, 
     let axis_y = origin.y + MAX_ROWS as f32 * ROW_H + 2.0;
     painter.line_segment(
         [pos2(track_x0, axis_y), pos2(track_x0 + track_w, axis_y)],
-        Stroke::new(1.0, CHART_STROKE_COLOR),
+        Stroke::new(1.0_f32, CHART_STROKE_COLOR),
     );
     // Approximately one tick each 10 laps. On long races the step is larger, so that the ticks do
     // not overlap.
@@ -242,7 +242,7 @@ fn render_stint_timeline(ui: &mut egui::Ui, rows: &[StintRow], total_laps: i32, 
         let x = lap_x(lap as f32);
         painter.line_segment(
             [pos2(x, axis_y), pos2(x, axis_y + 3.0)],
-            Stroke::new(1.0, CHART_STROKE_COLOR),
+            Stroke::new(1.0_f32, CHART_STROKE_COLOR),
         );
         painter.text(
             pos2(x, axis_y + 5.0),
@@ -256,7 +256,7 @@ fn render_stint_timeline(ui: &mut egui::Ui, rows: &[StintRow], total_laps: i32, 
     let cx = lap_x(current_lap);
     painter.line_segment(
         [pos2(cx, origin.y), pos2(cx, axis_y)],
-        Stroke::new(1.0, SUCCESS_BORDER_COLOR),
+        Stroke::new(1.0_f32, SUCCESS_BORDER_COLOR),
     );
 }
 
@@ -448,7 +448,7 @@ pub fn render_fuel_tab(
                         .fill(CARD_BACKGROUND_COLOR)
                         .rounding(8.0)
                         .inner_margin(16.0)
-                        .stroke(egui::Stroke::new(2.0, color))
+                        .stroke(egui::Stroke::new(2.0_f32, color))
                         .show(ui, |ui| {
                             super::render_laps_left_card(
                                 ui,
@@ -500,7 +500,7 @@ pub fn render_fuel_tab(
                         .fill(WARNING_BACKGROUND_COLOR)
                         .rounding(8.0)
                         .inner_margin(12.0)
-                        .stroke(egui::Stroke::new(2.0, Color32::RED))
+                        .stroke(egui::Stroke::new(2.0_f32, Color32::RED))
                         .show(ui, |ui| {
                             ui.horizontal(|ui| {
                                 ui.label(RichText::new("⚠").size(24.0).color(Color32::RED));
@@ -558,7 +558,7 @@ pub fn render_fuel_tab(
                     .fill(bg_color)
                     .rounding(8.0)
                     .inner_margin(16.0)
-                    .stroke(egui::Stroke::new(3.0, border_color))
+                    .stroke(egui::Stroke::new(3.0_f32, border_color))
                     .show(ui, |ui| {
                         ui.set_min_height(super::STATUS_BANNER_HEIGHT);
                         ui.horizontal(|ui| {
@@ -599,7 +599,7 @@ pub fn render_fuel_tab(
                     .fill(CHART_BACKGROUND_COLOR)
                     .rounding(8.0)
                     .inner_margin(12.0)
-                    .stroke(egui::Stroke::new(1.0, CHART_STROKE_COLOR))
+                    .stroke(egui::Stroke::new(1.0_f32, CHART_STROKE_COLOR))
                     .show(ui, |ui| {
                         ui.set_min_height(CHART_HEIGHT);
                         ui.label(
@@ -617,7 +617,7 @@ pub fn render_fuel_tab(
 
                         let line = Line::new(points)
                             .color(Color32::GRAY)
-                            .width(2.0)
+                            .width(2.0_f32)
                             .name("Fuel/Lap");
 
                         Plot::new("fuel_plot")
@@ -652,7 +652,7 @@ pub fn render_fuel_tab(
                                     plot_ui.line(
                                         Line::new(low_points)
                                             .color(color_low)
-                                            .width(2.5)
+                                            .width(2.5_f32)
                                             .style(egui_plot::LineStyle::dashed_loose())
                                             .name(format!("LOW {:.3}L", low)),
                                     );
@@ -667,7 +667,7 @@ pub fn render_fuel_tab(
                                     plot_ui.line(
                                         Line::new(avg_points)
                                             .color(color_avg)
-                                            .width(2.5)
+                                            .width(2.5_f32)
                                             .style(egui_plot::LineStyle::dashed_loose())
                                             .name(format!("AVG {:.3}L", avg)),
                                     );
@@ -682,7 +682,7 @@ pub fn render_fuel_tab(
                                     plot_ui.line(
                                         Line::new(push_points)
                                             .color(color_push)
-                                            .width(2.5)
+                                            .width(2.5_f32)
                                             .style(egui_plot::LineStyle::dashed_loose())
                                             .name(format!("PUSH {:.3}L", push)),
                                     );
@@ -697,7 +697,7 @@ pub fn render_fuel_tab(
                                     plot_ui.line(
                                         Line::new(max_points)
                                             .color(color_max)
-                                            .width(2.5)
+                                            .width(2.5_f32)
                                             .style(egui_plot::LineStyle::dashed_loose())
                                             .name(format!("MAX {:.3}L", max)),
                                     );
@@ -709,7 +709,7 @@ pub fn render_fuel_tab(
                                     plot_ui.vline(
                                         VLine::new(pit_lap as f64)
                                             .color(color_pit)
-                                            .width(3.0)
+                                            .width(3.0_f32)
                                             .name("⚑ PIT"),
                                     );
                                 }
@@ -724,7 +724,7 @@ pub fn render_fuel_tab(
                                     // A much darker version of the PUSH color.
                                     let dark_push = PLOT_DARK_PUSH_COLOR; // Dark red
                                     plot_ui.vline(
-                                        VLine::new(lap_x).color(dark_push).width(3.0).name(""),
+                                        VLine::new(lap_x).color(dark_push).width(3.0_f32).name(""),
                                     );
                                 }
 
@@ -737,7 +737,7 @@ pub fn render_fuel_tab(
                                     // A much darker version of the LOW color.
                                     let dark_low = PLOT_DARK_LOW_COLOR; // Dark green
                                     plot_ui.vline(
-                                        VLine::new(lap_x).color(dark_low).width(3.0).name(""),
+                                        VLine::new(lap_x).color(dark_low).width(3.0_f32).name(""),
                                     );
                                 }
                             });

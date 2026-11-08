@@ -1,7 +1,7 @@
+use checking_fuel::AppState;
 use eframe::egui;
 use egui::{Color32, RichText};
 use egui_plot::{Line, Plot, PlotPoints, VLine};
-use checking_fuel::AppState;
 
 /// Width of the caption column in the current frame grid. It fits the longest
 /// caption ("DriverCarFuelMaxLtr (SDK):"), so that the values align.
@@ -99,7 +99,7 @@ pub fn render_debug_tab(
                     plot_ui.line(
                         Line::new(fuel_used_points)
                             .color(Color32::GRAY)
-                            .width(2.0)
+                            .width(2.0_f32)
                             .name("Actual"),
                     );
 
@@ -110,7 +110,7 @@ pub fn render_debug_tab(
 
                     // Add yellow flag indicators for yellow laps
                     for x in &yellow_laps {
-                        plot_ui.vline(VLine::new(*x).color(Color32::YELLOW).width(2.0));
+                        plot_ui.vline(VLine::new(*x).color(Color32::YELLOW).width(2.0_f32));
                     }
                 });
 
@@ -132,7 +132,7 @@ pub fn render_debug_tab(
 
                     // Add yellow flag indicators for yellow laps
                     for x in &yellow_laps {
-                        plot_ui.vline(VLine::new(*x).color(Color32::YELLOW).width(2.0));
+                        plot_ui.vline(VLine::new(*x).color(Color32::YELLOW).width(2.0_f32));
                     }
                 });
 

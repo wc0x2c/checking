@@ -159,26 +159,26 @@ struct RaceSetup {
 fn build_state(s: RaceSetup) -> AppState {
     let mut state = AppState::new();
 
-    let mut frame = TelemetryFrame::default();
-    frame.lap_current = s.current_lap;
-    frame.lap_dist_pct = s.lap_dist_pct;
-    frame.leader_lap = s.leader_lap;
-    frame.fuel_level = s.fuel_level;
-    frame.fuel_capacity = s.capacity;
-    frame.fuel_max_ltr = s.capacity;
-    frame.fuel_level_pct = if s.capacity > 0.0 {
-        s.fuel_level / s.capacity
-    } else {
-        0.0
+    state.latest_frame = TelemetryFrame {
+        lap_current: s.current_lap,
+        lap_dist_pct: s.lap_dist_pct,
+        leader_lap: s.leader_lap,
+        fuel_level: s.fuel_level,
+        fuel_capacity: s.capacity,
+        fuel_max_ltr: s.capacity,
+        fuel_level_pct: if s.capacity > 0.0 {
+            s.fuel_level / s.capacity
+        } else {
+            0.0
+        },
+        session_laps_total: s.total_laps,
+        session_laps_remain_ex: (s.total_laps - s.current_lap).max(0),
+        position: 4,
+        class_position: 4,
+        // Green flag, so that no lap is a caution lap.
+        session_flags: 0x0004,
+        ..Default::default()
     };
-    frame.session_laps_total = s.total_laps;
-    frame.session_laps_remain_ex = (s.total_laps - s.current_lap).max(0);
-    frame.position = 4;
-    frame.class_position = 4;
-    // Green flag, so that no lap is a caution lap.
-    frame.session_flags = 0x0004;
-
-    state.latest_frame = frame;
     state.connected = true;
     state.current_lap = s.current_lap;
     state.laps_down = (s.leader_lap - s.current_lap).max(0);

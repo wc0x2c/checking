@@ -114,7 +114,8 @@ mod tests {
     /// Makes a car that moves at a constant speed, thus `est_time` is linear
     /// with `lap_dist_pct`.
     fn car(car_idx: i32, lap: i32, lap_dist_pct: f32, class_est_lap_time: f32) -> DriverInfo {
-        let mut driver = DriverInfo::new(car_idx, "", "", "", 0, 0, lap, lap_dist_pct);
+        let mut driver =
+            DriverInfo::new(car_idx, "", "", "", 0).with_track_position(0, lap, lap_dist_pct);
         driver.class_est_lap_time = class_est_lap_time;
         driver.est_time = lap_dist_pct * class_est_lap_time;
         driver

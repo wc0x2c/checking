@@ -6,8 +6,8 @@
 //! and the car length.
 
 use checking_fuel::{
-    wrapped_pct_delta, AppState, LR_2_CARS_LEFT, LR_2_CARS_RIGHT, LR_CAR_LEFT, LR_CAR_LEFT_RIGHT,
-    LR_CAR_RIGHT,
+    AppState, LR_2_CARS_LEFT, LR_2_CARS_RIGHT, LR_CAR_LEFT, LR_CAR_LEFT_RIGHT, LR_CAR_RIGHT,
+    wrapped_pct_delta,
 };
 
 /// TrkLoc value for a car on the track surface.
@@ -184,12 +184,13 @@ mod tests {
 
     fn state_with(clr: i32, drivers: Vec<DriverInfo>) -> AppState {
         let mut state = AppState::new();
-        let mut frame = TelemetryFrame::default();
-        frame.car_left_right = clr;
-        frame.track_length_meters = 5000.0;
-        frame.player_car_idx = 0;
-        frame.drivers = drivers;
-        state.latest_frame = frame;
+        state.latest_frame = TelemetryFrame {
+            car_left_right: clr,
+            track_length_meters: 5000.0,
+            player_car_idx: 0,
+            drivers,
+            ..Default::default()
+        };
         state
     }
 

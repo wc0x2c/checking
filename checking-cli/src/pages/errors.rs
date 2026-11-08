@@ -1,6 +1,6 @@
+use checking_fuel::AppState;
 use eframe::egui;
 use egui::{Color32, RichText};
-use checking_fuel::AppState;
 
 const ERROR_BACKGROUND_COLOR: Color32 = Color32::from_rgb(50, 30, 30);
 const WARNING_BACKGROUND_COLOR: Color32 = Color32::from_rgb(50, 45, 30);
@@ -74,7 +74,7 @@ pub fn render_errors_tab(ui: &mut egui::Ui, state: &mut AppState) {
                     .rounding(4.0)
                     .inner_margin(12.0)
                     .outer_margin(egui::Margin::symmetric(0.0, 4.0))
-                    .stroke(egui::Stroke::new(1.0, Color32::from_rgb(80, 50, 50)))
+                    .stroke(egui::Stroke::new(1.0_f32, Color32::from_rgb(80, 50, 50)))
                     .show(ui, |ui| {
                         ui.horizontal(|ui| {
                             // The loop starts at the newest error, so count down.

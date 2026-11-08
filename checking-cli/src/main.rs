@@ -1,10 +1,10 @@
 // #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+use checking_fuel::{AppState, SenderState};
+use checking_protocol::TelemetryFrame;
 use eframe::egui;
 use egui::{Color32, RichText};
-use checking_fuel::{AppState, SenderState};
 use std::sync::{Arc, Mutex};
-use checking_protocol::TelemetryFrame;
 
 mod config;
 mod overlay;
@@ -329,10 +329,7 @@ impl eframe::App for FuelApp {
                                     current_lap_fractional,
                                     total_laps,
                                     fuel_capacity,
-                                    low,
-                                    avg,
-                                    push,
-                                    max,
+                                    [low, avg, push, max],
                                 );
 
                                 self.simulation_cache = Some((cache_key, results));
@@ -402,7 +399,7 @@ impl FuelApp {
         color_avg: Color32,
         color_push: Color32,
         color_max: Color32,
-        fuel_estimates: &FuelEstimates,
+        _fuel_estimates: &FuelEstimates,
     ) {
         let state = self.state.lock().unwrap();
 
@@ -556,97 +553,17 @@ impl FuelApp {
                                     egui::pos2(cfg.x, cfg.y),
                                 ));
                             }
-                        } else if !self.overlay_config.locked {
-                            if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
-                                let cfg = &mut self.overlay_config.fuel_to_add;
-                                cfg.x = outer_rect.left();
-                                cfg.y = outer_rect.top();
-                            }
+                        } else if !self.overlay_config.locked
+                            && let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect)
+                        {
+                            let cfg = &mut self.overlay_config.fuel_to_add;
+                            cfg.x = outer_rect.left();
+                            cfg.y = outer_rect.top();
                         }
                     }
 
                     if ctx.input(|i| i.viewport().close_requested()) {
                         self.overlay_config.fuel_to_add.enabled = false;
-                        let _ = self.overlay_config.save();
-                    }
-                },
-            );
-        }
-
-        // Strategy overlay: the pit lap and the fuel saving target.
-        if self.overlay_config.strategy.enabled {
-            let cfg = &self.overlay_config.strategy;
-
-            let viewport_builder = egui::ViewportBuilder::default()
-                .with_title("Strategy")
-                .with_position([cfg.x, cfg.y])
-                .with_decorations(false)
-                .with_resizable(false)
-                .with_always_on_top()
-                .with_transparent(true)
-                .with_inner_size([260.0, 90.0]);
-
-            ctx.show_viewport_immediate(
-                egui::ViewportId::from_hash_of("strategy_overlay"),
-                viewport_builder,
-                |ctx, class| {
-                    if class == egui::ViewportClass::Embedded {
-                        return;
-                    }
-
-                    if ctx.input(|i| i.key_pressed(egui::Key::Escape)) {
-                        self.overlay_config.strategy.enabled = false;
-                        let _ = self.overlay_config.save();
-                        return;
-                    }
-
-                    let mut panel_response = None;
-
-                    egui::CentralPanel::default()
-                        .frame(egui::Frame::none())
-                        .show(ctx, |ui| {
-                            ui.spacing_mut().window_margin = egui::Margin::ZERO;
-                            ui.spacing_mut().item_spacing = egui::vec2(0.0, 0.0);
-                            ui.visuals_mut().window_fill = Color32::TRANSPARENT;
-                            ui.visuals_mut().panel_fill = Color32::TRANSPARENT;
-
-                            let response = overlay::render_strategy_overlay(
-                                ui,
-                                &state,
-                                self.overlay_config.extra_liters,
-                                self.overlay_config.fuel_tank_pct,
-                            );
-
-                            panel_response = Some(response);
-                        });
-
-                    if let Some(response) = panel_response {
-                        if !self.overlay_config.locked && response.dragged() {
-                            if let Some(pos_delta) = ctx.input(|i| {
-                                if i.pointer.primary_down() {
-                                    Some(i.pointer.delta())
-                                } else {
-                                    None
-                                }
-                            }) {
-                                let cfg = &mut self.overlay_config.strategy;
-                                cfg.x += pos_delta.x;
-                                cfg.y += pos_delta.y;
-                                ctx.send_viewport_cmd(egui::ViewportCommand::OuterPosition(
-                                    egui::pos2(cfg.x, cfg.y),
-                                ));
-                            }
-                        } else if !self.overlay_config.locked {
-                            if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
-                                let cfg = &mut self.overlay_config.strategy;
-                                cfg.x = outer_rect.left();
-                                cfg.y = outer_rect.top();
-                            }
-                        }
-                    }
-
-                    if ctx.input(|i| i.viewport().close_requested()) {
-                        self.overlay_config.strategy.enabled = false;
                         let _ = self.overlay_config.save();
                     }
                 },
@@ -717,12 +634,12 @@ impl FuelApp {
                                     egui::pos2(cfg.x, cfg.y),
                                 ));
                             }
-                        } else if !self.overlay_config.locked {
-                            if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
-                                let cfg = &mut self.overlay_config.avg_laps_left;
-                                cfg.x = outer_rect.left();
-                                cfg.y = outer_rect.top();
-                            }
+                        } else if !self.overlay_config.locked
+                            && let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect)
+                        {
+                            let cfg = &mut self.overlay_config.avg_laps_left;
+                            cfg.x = outer_rect.left();
+                            cfg.y = outer_rect.top();
                         }
                     }
 
@@ -800,12 +717,12 @@ impl FuelApp {
                                     egui::pos2(cfg.x, cfg.y),
                                 ));
                             }
-                        } else if !self.overlay_config.locked {
-                            if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
-                                let cfg = &mut self.overlay_config.push_laps_left;
-                                cfg.x = outer_rect.left();
-                                cfg.y = outer_rect.top();
-                            }
+                        } else if !self.overlay_config.locked
+                            && let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect)
+                        {
+                            let cfg = &mut self.overlay_config.push_laps_left;
+                            cfg.x = outer_rect.left();
+                            cfg.y = outer_rect.top();
                         }
                     }
 
@@ -883,12 +800,12 @@ impl FuelApp {
                                     egui::pos2(cfg.x, cfg.y),
                                 ));
                             }
-                        } else if !self.overlay_config.locked {
-                            if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
-                                let cfg = &mut self.overlay_config.low_laps_left;
-                                cfg.x = outer_rect.left();
-                                cfg.y = outer_rect.top();
-                            }
+                        } else if !self.overlay_config.locked
+                            && let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect)
+                        {
+                            let cfg = &mut self.overlay_config.low_laps_left;
+                            cfg.x = outer_rect.left();
+                            cfg.y = outer_rect.top();
                         }
                     }
 
@@ -966,12 +883,12 @@ impl FuelApp {
                                     egui::pos2(cfg.x, cfg.y),
                                 ));
                             }
-                        } else if !self.overlay_config.locked {
-                            if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
-                                let cfg = &mut self.overlay_config.max_laps_left;
-                                cfg.x = outer_rect.left();
-                                cfg.y = outer_rect.top();
-                            }
+                        } else if !self.overlay_config.locked
+                            && let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect)
+                        {
+                            let cfg = &mut self.overlay_config.max_laps_left;
+                            cfg.x = outer_rect.left();
+                            cfg.y = outer_rect.top();
                         }
                     }
 
@@ -1046,21 +963,21 @@ impl FuelApp {
                                     egui::pos2(cfg.x, cfg.y),
                                 ));
                             }
-                        } else if !self.overlay_config.locked {
-                            if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
-                                let cfg = &mut self.overlay_config.relative.window;
-                                cfg.x = outer_rect.left();
-                                cfg.y = outer_rect.top();
-                            }
+                        } else if !self.overlay_config.locked
+                            && let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect)
+                        {
+                            let cfg = &mut self.overlay_config.relative.window;
+                            cfg.x = outer_rect.left();
+                            cfg.y = outer_rect.top();
                         }
                     }
 
-                    if !self.overlay_config.locked {
-                        if let Some(inner_rect) = ctx.input(|i| i.viewport().inner_rect) {
-                            let cfg = &mut self.overlay_config.relative.window;
-                            cfg.width = inner_rect.width();
-                            cfg.height = inner_rect.height();
-                        }
+                    if !self.overlay_config.locked
+                        && let Some(inner_rect) = ctx.input(|i| i.viewport().inner_rect)
+                    {
+                        let cfg = &mut self.overlay_config.relative.window;
+                        cfg.width = inner_rect.width();
+                        cfg.height = inner_rect.height();
                     }
 
                     if ctx.input(|i| i.viewport().close_requested()) {
@@ -1132,21 +1049,21 @@ impl FuelApp {
                                     egui::pos2(cfg.x, cfg.y),
                                 ));
                             }
-                        } else if !self.overlay_config.locked {
-                            if let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect) {
-                                let cfg = &mut self.overlay_config.pedal.window;
-                                cfg.x = outer_rect.left();
-                                cfg.y = outer_rect.top();
-                            }
+                        } else if !self.overlay_config.locked
+                            && let Some(outer_rect) = ctx.input(|i| i.viewport().outer_rect)
+                        {
+                            let cfg = &mut self.overlay_config.pedal.window;
+                            cfg.x = outer_rect.left();
+                            cfg.y = outer_rect.top();
                         }
                     }
 
-                    if !self.overlay_config.locked {
-                        if let Some(inner_rect) = ctx.input(|i| i.viewport().inner_rect) {
-                            let cfg = &mut self.overlay_config.pedal.window;
-                            cfg.width = inner_rect.width();
-                            cfg.height = inner_rect.height();
-                        }
+                    if !self.overlay_config.locked
+                        && let Some(inner_rect) = ctx.input(|i| i.viewport().inner_rect)
+                    {
+                        let cfg = &mut self.overlay_config.pedal.window;
+                        cfg.width = inner_rect.width();
+                        cfg.height = inner_rect.height();
                     }
 
                     if ctx.input(|i| i.viewport().close_requested()) {
@@ -1201,18 +1118,19 @@ impl FuelApp {
                         });
 
                     if let Some(response) = panel_response {
-                        if !self.overlay_config.locked && response.dragged() {
-                            if let Some(pos_delta) = ctx.input(|i| {
+                        if !self.overlay_config.locked
+                            && response.dragged()
+                            && let Some(pos_delta) = ctx.input(|i| {
                                 if i.pointer.primary_down() {
                                     Some(i.pointer.delta())
                                 } else {
                                     None
                                 }
-                            }) {
-                                let cfg = &mut self.overlay_config.radar_left;
-                                cfg.x += pos_delta.x;
-                                cfg.y += pos_delta.y;
-                            }
+                            })
+                        {
+                            let cfg = &mut self.overlay_config.radar_left;
+                            cfg.x += pos_delta.x;
+                            cfg.y += pos_delta.y;
                         }
 
                         if !self.overlay_config.locked && response.drag_stopped() {
@@ -1279,18 +1197,19 @@ impl FuelApp {
                         });
 
                     if let Some(response) = panel_response {
-                        if !self.overlay_config.locked && response.dragged() {
-                            if let Some(pos_delta) = ctx.input(|i| {
+                        if !self.overlay_config.locked
+                            && response.dragged()
+                            && let Some(pos_delta) = ctx.input(|i| {
                                 if i.pointer.primary_down() {
                                     Some(i.pointer.delta())
                                 } else {
                                     None
                                 }
-                            }) {
-                                let cfg = &mut self.overlay_config.radar_right;
-                                cfg.x += pos_delta.x;
-                                cfg.y += pos_delta.y;
-                            }
+                            })
+                        {
+                            let cfg = &mut self.overlay_config.radar_right;
+                            cfg.x += pos_delta.x;
+                            cfg.y += pos_delta.y;
                         }
 
                         if !self.overlay_config.locked && response.drag_stopped() {
@@ -1420,21 +1339,6 @@ fn render_options_tab(
                         let mut enabled = config.fuel_to_add.enabled;
                         if ui.checkbox(&mut enabled, "").changed() {
                             config.fuel_to_add.enabled = enabled;
-                            let _ = config.save();
-                        }
-                        ui.end_row();
-
-                        ui.label("Strategy Call");
-                        let mut enabled = config.strategy.enabled;
-                        if ui
-                            .checkbox(&mut enabled, "")
-                            .on_hover_text(
-                                "Box lap and fill, plus the fuel-saving target that would \
-                                 remove a pit stop.",
-                            )
-                            .changed()
-                        {
-                            config.strategy.enabled = enabled;
                             let _ = config.save();
                         }
                         ui.end_row();
@@ -1820,7 +1724,7 @@ fn render_options_tab(
                                             .color(Color32::from_rgb(255, 200, 0)),
                                     );
                                     ui.label(
-                                        RichText::new(format!("{}", name))
+                                        RichText::new(name.to_string())
                                             .size(13.0)
                                             .color(Color32::from_rgb(255, 150, 150)),
                                     );
@@ -2067,18 +1971,17 @@ fn render_options_tab(
 
                 ui.add_space(8.0);
 
-                if ui.button("Open Config Folder").clicked() {
-                    if let Err(e) = open_file_location(config_dir) {
+                if ui.button("Open Config Folder").clicked()
+                    && let Err(e) = open_file_location(config_dir) {
                         eprintln!("Failed to open config location: {}", e);
                     }
-                }
             });
     });
 }
 
 async fn run_network_listener(state: Arc<Mutex<AppState>>) -> anyhow::Result<()> {
-    use deku::DekuContainerRead;
     use checking_fuel::ParseError;
+    use deku::DekuContainerRead;
     use futures::StreamExt;
     use std::time::Instant;
     use tokio::net::TcpListener;

@@ -1,11 +1,11 @@
-use eframe::egui;
-use egui::{Color32, RichText};
 use checking_fuel::AppState;
 use checking_protocol::DriverInfo;
+use eframe::egui;
+use egui::{Color32, RichText};
 
 use crate::config::{MinimapMode, RadarOverlayConfig, RelativeOverlayConfig};
 use crate::pages;
-use crate::radar::{analyze_radar, bar_bounds_px, RadarTarget};
+use crate::radar::{RadarTarget, analyze_radar, bar_bounds_px};
 use crate::relative::relative_gap;
 
 const LAP_PROGRESS_BAR_COLOR: Color32 = Color32::from_rgb(100, 150, 255);
@@ -13,118 +13,6 @@ const CARD_BACKGROUND_COLOR: Color32 = pages::CARD_BACKGROUND_COLOR;
 // The card colors that all pages use are in `pages`.
 const SUCCESS_TEXT_COLOR: Color32 = pages::SUCCESS_TEXT_COLOR;
 const WARNING_TEXT_COLOR: Color32 = pages::WARNING_TEXT_COLOR;
-const CAUTION_TEXT_COLOR: Color32 = pages::CAUTION_TEXT_COLOR;
-
-/// The strategy result, for the driver in the car.
-///
-/// It has one or two short lines, because the driver reads it at speed. Line 1 is the pit call.
-/// Line 2 shows only when it exists: the fuel saving target that removes a stop. During the race,
-/// only this information is important enough to show here. All other data is on the Fuel tab.
-pub fn render_strategy_overlay(
-    ui: &mut egui::Ui,
-    state: &AppState,
-    extra_liters: f32,
-    fuel_tank_pct: Option<f32>,
-) -> egui::Response {
-    let capacity = pages::get_effective_fuel_capacity(state.get_fuel_capacity(), fuel_tank_pct);
-    let analysis = crate::strategy::analyze(state, extra_liters, capacity);
-
-    // AVG is the default. If it is not available, use the first rate that is, so that a session
-    // with little lap data still shows a value and not an empty box.
-    let reference = analysis
-        .outcomes
-        .iter()
-        .find(|o| o.label == "AVG")
-        .or_else(|| analysis.outcomes.first());
-
-    let frame_response = egui::Frame::none()
-        .fill(CARD_BACKGROUND_COLOR)
-        .rounding(4.0)
-        .inner_margin(egui::Margin::symmetric(10.0, 6.0))
-        .outer_margin(egui::Margin::symmetric(1.0, 1.0))
-        .show(ui, |ui| {
-            ui.vertical(|ui| {
-                let Some(reference) = reference else {
-                    ui.label(
-                        RichText::new("STRATEGY")
-                            .size(12.0)
-                            .strong()
-                            .color(Color32::GRAY),
-                    );
-                    ui.label(
-                        RichText::new("collecting lap data")
-                            .size(16.0)
-                            .color(Color32::GRAY),
-                    );
-                    return;
-                };
-
-                // Line 1: the pit call. It is red when the stop cannot wait, so that an urgent pit
-                // window is easy to see.
-                let urgent = analysis.pit_window.as_ref().is_some_and(|w| w.is_urgent);
-                let (call, color) = match (reference.pit_lap, reference.fuel_at_first_stop) {
-                    (Some(_), Some(fill)) if urgent => {
-                        (format!("BOX NOW · +{fill:.0}L"), WARNING_TEXT_COLOR)
-                    }
-                    (Some(lap), Some(fill)) => {
-                        (format!("BOX L{lap} · +{fill:.0}L"), Color32::WHITE)
-                    }
-                    (Some(lap), None) => (format!("BOX L{lap}"), Color32::WHITE),
-                    (None, _) => ("NO STOP".to_string(), SUCCESS_TEXT_COLOR),
-                };
-                ui.label(RichText::new(call).size(24.0).strong().color(color));
-
-                // Line 2: the result that changes the race, if there is one.
-                if let Some(t) = &analysis.saving_target {
-                    ui.label(
-                        RichText::new(format!(
-                            "SAVE {:.2}/lap → {} stop{}",
-                            t.saving_per_lap,
-                            t.stops_if_saving,
-                            if t.stops_if_saving == 1 { "" } else { "s" },
-                        ))
-                        .size(15.0)
-                        .strong()
-                        .color(SUCCESS_TEXT_COLOR),
-                    );
-                } else if let Some(w) = &analysis.pit_window {
-                    // No fuel saving is possible: show the remaining margin before the stop.
-                    if !w.is_urgent {
-                        ui.label(
-                            RichText::new(format!("window L{}-L{}", w.earliest_lap, w.latest_lap))
-                                .size(14.0)
-                                .color(CAUTION_TEXT_COLOR),
-                        );
-                    }
-                }
-
-                // The cost of a pit stop on this lap. Show this third line only when it changes the
-                // answer. Under a caution, this is the full decision, and the driver has very
-                // little time to make it.
-                if let Some(p) = &analysis.pit_now {
-                    if p.costs_a_stop {
-                        ui.label(
-                            RichText::new(format!("box now = {} stops", p.total_stops))
-                                .size(13.0)
-                                .color(WARNING_TEXT_COLOR),
-                        );
-                    } else if p.reaches_finish && p.total_stops <= 1 {
-                        ui.label(
-                            RichText::new(format!("box now OK · +{:.0}L", p.fuel_to_add))
-                                .size(13.0)
-                                .color(SUCCESS_TEXT_COLOR),
-                        );
-                    }
-                }
-            });
-        });
-
-    ui.interact(
-        frame_response.response.rect,
-        ui.id().with("drag_strategy"),
-        egui::Sense::drag(),
-    )
-}
 
 pub fn render_laps_remaining_overlay(ui: &mut egui::Ui, state: &AppState) -> egui::Response {
     let total_laps = state.get_effective_total_laps();
@@ -277,7 +165,7 @@ pub fn render_fuel_to_add_overlay(
 ///
 /// This card is not the same as the LAPS LEFT card on the Fuel tab. The overlay shows the fuel
 /// margin and does not show the pit line. In the car, the driver wants to know if the fuel is
-/// sufficient. The strategy overlay tells when to pit.
+/// sufficient. The Fuel tab tells when to pit.
 fn render_laps_left_overlay(
     ui: &mut egui::Ui,
     state: &AppState,
@@ -300,7 +188,7 @@ fn render_laps_left_overlay(
         .fill(CARD_BACKGROUND_COLOR)
         .inner_margin(12.0)
         .outer_margin(egui::Margin::symmetric(1.0, 1.0))
-        .stroke(egui::Stroke::new(2.0, color))
+        .stroke(egui::Stroke::new(2.0_f32, color))
         .show(ui, |ui| {
             ui.vertical(|ui| {
                 ui.label(RichText::new(label).size(12.0).color(Color32::GRAY));
@@ -440,7 +328,7 @@ pub fn render_relative_overlay(
         Some(p) => p,
         None => {
             // The player is not in the list. Show all drivers sorted by position.
-            let relative_drivers: Vec<_> = sorted_drivers.iter().copied().collect();
+            let relative_drivers: Vec<_> = sorted_drivers.to_vec();
 
             let outer_frame_response = egui::Frame::none()
                 .outer_margin(egui::Margin::symmetric(1.0, 1.0))
@@ -448,7 +336,7 @@ pub fn render_relative_overlay(
                     egui::Frame::none()
                         .fill(CARD_BACKGROUND_COLOR)
                         .inner_margin(12.0)
-                        .stroke(egui::Stroke::new(2.0, Color32::from_rgb(60, 70, 80)))
+                        .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(60, 70, 80)))
                         .show(ui, |ui| {
                             ui.vertical(|ui| {
                                 ui.label(
@@ -532,7 +420,7 @@ pub fn render_relative_overlay(
             egui::Frame::none()
                 .fill(CARD_BACKGROUND_COLOR)
                 .inner_margin(12.0)
-                .stroke(egui::Stroke::new(2.0, Color32::from_rgb(60, 70, 80)))
+                .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(60, 70, 80)))
                 .show(ui, |ui| {
                     ui.vertical(|ui| {
                         // Header
@@ -607,7 +495,7 @@ fn render_minimap(
         let line_end = egui::pos2(rect.right() - 10.0, track_y);
         painter.line_segment(
             [line_start, line_end],
-            egui::Stroke::new(3.0, Color32::from_rgb(60, 60, 60)),
+            egui::Stroke::new(3.0_f32, Color32::from_rgb(60, 60, 60)),
         );
 
         // Find the leader: the first item in sorted_drivers, which is sorted by track position.
@@ -706,7 +594,7 @@ fn render_driver_row(
         .inner_margin(4.0)
         .outer_margin(egui::Margin::symmetric(1.0, 1.0))
         .stroke(egui::Stroke::new(
-            if is_warning { 2.0 } else { 1.0 },
+            if is_warning { 2.0_f32 } else { 1.0_f32 },
             if is_player {
                 Color32::from_rgb(100, 150, 200)
             } else if is_warning {
@@ -888,7 +776,7 @@ pub fn render_pedal_overlay(
         .fill(CARD_BACKGROUND_COLOR)
         .inner_margin(12.0)
         .outer_margin(egui::Margin::symmetric(1.0, 1.0))
-        .stroke(egui::Stroke::new(2.0, Color32::from_rgb(60, 70, 80)))
+        .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(60, 70, 80)))
         .show(ui, |ui| {
             ui.vertical(|ui| {
                 // History graph
@@ -1047,7 +935,7 @@ fn render_input_history_graph(ui: &mut egui::Ui, state: &AppState, history_secon
         let y = rect.bottom() - (rect.height() * i as f32 / 4.0);
         painter.line_segment(
             [egui::pos2(rect.left(), y), egui::pos2(rect.right(), y)],
-            egui::Stroke::new(1.0, Color32::from_rgb(40, 40, 40)),
+            egui::Stroke::new(1.0_f32, Color32::from_rgb(40, 40, 40)),
         );
 
         // Percentage labels
@@ -1122,21 +1010,21 @@ fn render_input_history_graph(ui: &mut egui::Ui, state: &AppState, history_secon
     if throttle_points.len() > 1 {
         painter.add(egui::Shape::line(
             throttle_points,
-            egui::Stroke::new(2.0, Color32::from_rgb(100, 255, 100)),
+            egui::Stroke::new(2.0_f32, Color32::from_rgb(100, 255, 100)),
         ));
     }
 
     if brake_points.len() > 1 {
         painter.add(egui::Shape::line(
             brake_points,
-            egui::Stroke::new(2.0, Color32::from_rgb(255, 100, 100)),
+            egui::Stroke::new(2.0_f32, Color32::from_rgb(255, 100, 100)),
         ));
     }
 
     if clutch_points.len() > 1 {
         painter.add(egui::Shape::line(
             clutch_points,
-            egui::Stroke::new(2.0, Color32::from_rgb(100, 150, 255)),
+            egui::Stroke::new(2.0_f32, Color32::from_rgb(100, 150, 255)),
         ));
     }
 
@@ -1176,7 +1064,7 @@ pub fn render_radar_left_overlay(
         .fill(CARD_BACKGROUND_COLOR)
         .inner_margin(12.0)
         .outer_margin(egui::Margin::symmetric(1.0, 1.0))
-        .stroke(egui::Stroke::new(2.0, Color32::from_rgb(60, 70, 80)))
+        .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(60, 70, 80)))
         .show(ui, |ui| {
             render_radar_side_indicator(ui, left, cfg.range_m);
         });
@@ -1199,7 +1087,7 @@ pub fn render_radar_right_overlay(
         .fill(CARD_BACKGROUND_COLOR)
         .inner_margin(12.0)
         .outer_margin(egui::Margin::symmetric(1.0, 1.0))
-        .stroke(egui::Stroke::new(2.0, Color32::from_rgb(60, 70, 80)))
+        .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(60, 70, 80)))
         .show(ui, |ui| {
             render_radar_side_indicator(ui, right, cfg.range_m);
         });

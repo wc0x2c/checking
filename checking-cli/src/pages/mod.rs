@@ -14,7 +14,7 @@ use eframe::egui;
 use egui::{Color32, RichText};
 
 // Re-export checking-fuel functions for this crate.
-pub use checking_fuel::{compute_all_simulations, get_effective_fuel_capacity, SimulationResult};
+pub use checking_fuel::{SimulationResult, compute_all_simulations, get_effective_fuel_capacity};
 
 // Card colors for all pages. The Fuel tab and the overlay both render the LAPS LEFT card, so they
 // must use the same colors.
@@ -154,11 +154,7 @@ fn pad_detail(text: String) -> String {
 /// The value if it is available, or a dash if it is not. A table column with a value in each cell
 /// does not change size when the values arrive.
 fn dash_or(available: bool, value: impl FnOnce() -> String) -> String {
-    if available {
-        value()
-    } else {
-        "-".to_string()
-    }
+    if available { value() } else { "-".to_string() }
 }
 
 /// One LAPS LEFT card: the number of laps for the fuel of this strategy, when to pit and if the car
@@ -317,7 +313,7 @@ pub fn render_fuel_to_add_card(
             top: 16.0,
             bottom: 24.0, // Extra bottom margin to accommodate strategy markers below progress bar
         })
-        .stroke(egui::Stroke::new(2.0, Color32::from_rgb(80, 80, 100)))
+        .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(80, 80, 100)))
         .show(ui, |ui| {
             ui.set_width(250.0); // Fixed width for card in horizontal layout
             ui.vertical(|ui| {
@@ -425,7 +421,7 @@ pub fn render_fuel_to_add_card(
                             painter.vline(
                                 low_x,
                                 marker_y_range,
-                                egui::Stroke::new(4.0, colors.low),
+                                egui::Stroke::new(4.0_f32, colors.low),
                             );
                         }
 
@@ -436,7 +432,7 @@ pub fn render_fuel_to_add_card(
                             painter.vline(
                                 avg_x,
                                 marker_y_range,
-                                egui::Stroke::new(4.0, colors.avg),
+                                egui::Stroke::new(4.0_f32, colors.avg),
                             );
                         }
 
@@ -447,7 +443,7 @@ pub fn render_fuel_to_add_card(
                             painter.vline(
                                 push_x,
                                 marker_y_range,
-                                egui::Stroke::new(4.0, colors.push),
+                                egui::Stroke::new(4.0_f32, colors.push),
                             );
                         }
 
@@ -458,7 +454,7 @@ pub fn render_fuel_to_add_card(
                             painter.vline(
                                 max_x,
                                 marker_y_range,
-                                egui::Stroke::new(4.0, colors.max),
+                                egui::Stroke::new(4.0_f32, colors.max),
                             );
                         }
                     }
@@ -541,7 +537,7 @@ pub fn render_metric_card(
     egui::Frame::none()
         .fill(CARD_BACKGROUND_COLOR)
         .inner_margin(16.0)
-        .stroke(egui::Stroke::new(2.0, Color32::from_rgb(80, 80, 100)))
+        .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(80, 80, 100)))
         .show(ui, |ui| {
             ui.set_width(METRIC_CARD_WIDTH);
             ui.set_min_height(METRIC_CARD_HEIGHT);
@@ -573,7 +569,9 @@ pub fn render_metric_card(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use checking_fuel::{compute_all_simulations, get_effective_fuel_capacity, simulate_race_strategy};
+    use checking_fuel::{
+        compute_all_simulations, get_effective_fuel_capacity, simulate_race_strategy,
+    };
 
     // ============================================
     // Layout stability
@@ -925,10 +923,12 @@ mod tests {
             0.0,   // current_lap_fractional
             20,    // total_laps
             100.0, // fuel_capacity
-            2.0,   // low
-            2.5,   // avg
-            3.0,   // push
-            3.5,   // max
+            [
+                2.0, // LOW
+                2.5, // AVG
+                3.0, // PUSH
+                3.5, // MAX
+            ],
         );
 
         assert_eq!(results.len(), 4);
@@ -942,10 +942,12 @@ mod tests {
             0.0,  // current_lap_fractional
             20,   // total_laps
             50.0, // fuel_capacity
-            2.0,  // low - can do 20 laps on 40L, 0 stops
-            2.5,  // avg - can do 16 laps, 1 stop
-            3.0,  // push - can do 13 laps, 1 stop
-            4.0,  // max - can do 10 laps, 1 stop
+            [
+                2.0, // LOW - can do 20 laps on 40L, 0 stops
+                2.5, // AVG - can do 16 laps, 1 stop
+                3.0, // PUSH - can do 13 laps, 1 stop
+                4.0, // MAX - can do 10 laps, 1 stop
+            ],
         );
 
         // LOW (index 0) should have 0 stops (40L / 2.0L = 20 laps exactly)
@@ -973,10 +975,12 @@ mod tests {
             0.0,   // current_lap_fractional
             10,    // short race
             100.0, // fuel_capacity
-            2.0,   // low
-            2.5,   // avg
-            3.0,   // push
-            3.5,   // max
+            [
+                2.0, // LOW
+                2.5, // AVG
+                3.0, // PUSH
+                3.5, // MAX
+            ],
         );
 
         // All strategies should finish without stops

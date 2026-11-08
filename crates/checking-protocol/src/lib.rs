@@ -23,12 +23,12 @@ pub struct DriverInfo {
     pub lap_last_time: f32, // Last lap time
     pub est_time: f32, // Estimated time to the current track location (s)
     pub class_est_lap_time: f32, // Estimated lap time of the car class (s). est_time uses this scale.
-    pub speed: f32,   // Current speed
-    pub on_pit_road: i32, // 1 if on pit road, else 0
-    pub laps_since_pit: i32, // Laps completed since last pit stop
-    pub track_surface: i32, // Track location (irsdk TrkLoc)
-    pub is_pacing: i32, // Always 0. The sender does not detect pacing.
-    pub is_pace_car: i32, // Always 0. The sender does not detect the pace car.
+    pub speed: f32,              // Current speed
+    pub on_pit_road: i32,        // 1 if on pit road, else 0
+    pub laps_since_pit: i32,     // Laps completed since last pit stop
+    pub track_surface: i32,      // Track location (irsdk TrkLoc)
+    pub is_pacing: i32,          // Always 0. The sender does not detect pacing.
+    pub is_pace_car: i32,        // Always 0. The sender does not detect the pace car.
     pub car_class_relative_speed: i32, // Relative speed in class
 }
 
@@ -54,16 +54,14 @@ impl DriverInfo {
             .to_string()
     }
 
-    /// Makes a `DriverInfo` from strings.
+    /// Makes a `DriverInfo` from strings. The car starts in first position at
+    /// the start of lap 0. Use [`Self::with_track_position`] to change this.
     pub fn new(
         car_idx: i32,
         user_name: &str,
         car_number: &str,
         license_string: &str,
         irating: i32,
-        position: i32,
-        lap: i32,
-        lap_dist_pct: f32,
     ) -> Self {
         let mut user_name_bytes = vec![0u8; 64];
         let user_name_src = user_name.as_bytes();
@@ -87,10 +85,10 @@ impl DriverInfo {
             car_class_id: 0,
             irating,
             license_string: license_bytes,
-            position,
-            class_position: position,
-            lap,
-            lap_dist_pct,
+            position: 1,
+            class_position: 1,
+            lap: 0,
+            lap_dist_pct: 0.0,
             lap_best_time: 0.0,
             lap_last_time: 0.0,
             est_time: 0.0,
@@ -103,6 +101,16 @@ impl DriverInfo {
             is_pace_car: 0,
             car_class_relative_speed: 0,
         }
+    }
+
+    /// Sets the overall position, which is also the class position, the lap
+    /// and the fraction of the lap.
+    pub fn with_track_position(mut self, position: i32, lap: i32, lap_dist_pct: f32) -> Self {
+        self.position = position;
+        self.class_position = position;
+        self.lap = lap;
+        self.lap_dist_pct = lap_dist_pct;
+        self
     }
 }
 
@@ -249,102 +257,52 @@ impl TelemetryFrame {
         let player_lap_dist = (iteration % 3600) as f32 / 3600.0;
 
         let drivers = vec![
-            DriverInfo::new(
-                0,
-                "John Smith",
-                "1",
-                "A 4.50",
-                3500,
+            DriverInfo::new(0, "John Smith", "1", "A 4.50", 3500).with_track_position(
                 1,
                 10,
                 player_lap_dist + 0.15,
             ),
-            DriverInfo::new(
-                1,
-                "Sarah Johnson",
-                "22",
-                "B 3.80",
-                2800,
+            DriverInfo::new(1, "Sarah Johnson", "22", "B 3.80", 2800).with_track_position(
                 2,
                 10,
                 player_lap_dist + 0.08,
             ),
-            DriverInfo::new(
-                2,
-                "Mike Wilson",
-                "7",
-                "A 4.20",
-                3200,
+            DriverInfo::new(2, "Mike Wilson", "7", "A 4.20", 3200).with_track_position(
                 3,
                 10,
                 player_lap_dist + 0.03,
             ),
-            DriverInfo::new(
-                3,
-                "Emma Brown",
-                "45",
-                "C 2.50",
-                1900,
+            DriverInfo::new(3, "Emma Brown", "45", "C 2.50", 1900).with_track_position(
                 4,
                 10,
                 player_lap_dist - 0.01,
             ),
-            DriverInfo::new(
-                4,
-                "Chris Davis",
-                "88",
-                "B 3.40",
-                2500,
+            DriverInfo::new(4, "Chris Davis", "88", "B 3.40", 2500).with_track_position(
                 5,
                 10,
                 player_lap_dist - 0.05,
             ),
-            DriverInfo::new(
-                player_idx,
-                "YOU",
-                "99",
-                "A 4.99",
-                4200,
+            DriverInfo::new(player_idx, "YOU", "99", "A 4.99", 4200).with_track_position(
                 6,
                 10,
                 player_lap_dist,
             ),
-            DriverInfo::new(
-                6,
-                "Alex Miller",
-                "13",
-                "A 4.75",
-                3800,
+            DriverInfo::new(6, "Alex Miller", "13", "A 4.75", 3800).with_track_position(
                 7,
                 10,
                 player_lap_dist - 0.10,
             ),
-            DriverInfo::new(
-                7,
-                "Lisa Anderson",
-                "33",
-                "B 3.60",
-                2700,
+            DriverInfo::new(7, "Lisa Anderson", "33", "B 3.60", 2700).with_track_position(
                 8,
                 10,
                 player_lap_dist - 0.15,
             ),
-            DriverInfo::new(
-                8,
-                "David Thomas",
-                "5",
-                "C 2.90",
-                2100,
+            DriverInfo::new(8, "David Thomas", "5", "C 2.90", 2100).with_track_position(
                 9,
                 10,
                 player_lap_dist - 0.22,
             ),
-            DriverInfo::new(
-                9,
-                "Jessica Martinez",
-                "77",
-                "A 4.30",
-                3300,
+            DriverInfo::new(9, "Jessica Martinez", "77", "A 4.30", 3300).with_track_position(
                 10,
                 10,
                 player_lap_dist - 0.30,
@@ -486,7 +444,7 @@ mod tests {
         assert!(frame.speed >= 0.0);
         assert!(frame.rpm >= 0.0);
         assert_eq!(frame.tire_temps_surface.len(), 4);
-        assert!(frame.drivers.len() > 0);
+        assert!(!frame.drivers.is_empty());
         assert_eq!(frame.driver_count, frame.drivers.len());
     }
 

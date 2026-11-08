@@ -8,10 +8,6 @@ pub struct OverlayConfig {
     pub laps_remaining: OverlayWindowConfig,
     #[serde(default)]
     pub fuel_to_add: OverlayWindowConfig,
-    /// The strategy result: the pit lap, and the fuel saving target that
-    /// removes one stop.
-    #[serde(default)]
-    pub strategy: OverlayWindowConfig,
     #[serde(default)]
     pub avg_laps_left: OverlayWindowConfig,
     #[serde(default)]
@@ -99,16 +95,11 @@ impl Default for RadarOverlayConfig {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub enum MinimapMode {
+    #[default]
     Relative, // The player car stays in the center.
     Absolute, // The start/finish line stays in the center.
-}
-
-impl Default for MinimapMode {
-    fn default() -> Self {
-        MinimapMode::Relative
-    }
 }
 
 fn default_num_positions() -> usize {
@@ -174,13 +165,6 @@ impl Default for OverlayConfig {
                 y: 100.0,
                 width: 300.0,
                 height: 180.0,
-            },
-            strategy: OverlayWindowConfig {
-                enabled: false,
-                x: 400.0,
-                y: 320.0,
-                width: 260.0,
-                height: 90.0,
             },
             avg_laps_left: OverlayWindowConfig {
                 enabled: false,

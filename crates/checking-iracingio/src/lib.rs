@@ -6,9 +6,11 @@ use anyhow::Result;
 #[cfg(windows)]
 use bytes::Bytes;
 #[cfg(windows)]
-use deku::DekuContainerWrite;
-#[cfg(windows)]
 use checking_fuel::{SenderState, SenderStatus};
+#[cfg(windows)]
+use checking_protocol::{DriverInfo, PROTOCOL_VERSION, TelemetryFrame, current_time_ms};
+#[cfg(windows)]
+use deku::DekuContainerWrite;
 #[cfg(windows)]
 use futures::SinkExt;
 #[cfg(windows)]
@@ -20,11 +22,9 @@ use std::collections::HashMap;
 #[cfg(windows)]
 use std::sync::{Arc, Mutex};
 #[cfg(windows)]
-use checking_protocol::{current_time_ms, DriverInfo, TelemetryFrame, PROTOCOL_VERSION};
-#[cfg(windows)]
 use tokio::net::TcpStream;
 #[cfg(windows)]
-use tokio::time::{interval, sleep, Duration};
+use tokio::time::{Duration, interval, sleep};
 #[cfg(windows)]
 use tokio_util::codec::{FramedWrite, LengthDelimitedCodec};
 

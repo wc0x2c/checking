@@ -1,6 +1,6 @@
+use checking_fuel::{SenderState, SenderStatus};
 use eframe::egui;
 use egui::{Color32, RichText};
-use checking_fuel::{SenderState, SenderStatus};
 
 pub fn render_sender_tab(ui: &mut egui::Ui, sender_state: &SenderState) {
     egui::ScrollArea::vertical()
@@ -19,7 +19,7 @@ pub fn render_sender_tab(ui: &mut egui::Ui, sender_state: &SenderState) {
         .rounding(8.0)
         .inner_margin(16.0)
         .stroke(egui::Stroke::new(
-            2.0,
+            2.0_f32,
             match &sender_state.status {
                 SenderStatus::Streaming { .. } => Color32::GREEN,
                 SenderStatus::Error(_) => Color32::RED,
@@ -72,7 +72,7 @@ pub fn render_sender_tab(ui: &mut egui::Ui, sender_state: &SenderState) {
         .fill(Color32::from_rgb(40, 40, 50))
         .rounding(8.0)
         .inner_margin(16.0)
-        .stroke(egui::Stroke::new(1.0, Color32::from_rgb(80, 80, 100)))
+        .stroke(egui::Stroke::new(1.0_f32, Color32::from_rgb(80, 80, 100)))
         .show(ui, |ui| {
             ui.label(
                 RichText::new("Configuration")
@@ -104,7 +104,7 @@ pub fn render_sender_tab(ui: &mut egui::Ui, sender_state: &SenderState) {
         .fill(Color32::from_rgb(40, 40, 50))
         .rounding(8.0)
         .inner_margin(16.0)
-        .stroke(egui::Stroke::new(1.0, Color32::from_rgb(80, 80, 100)))
+        .stroke(egui::Stroke::new(1.0_f32, Color32::from_rgb(80, 80, 100)))
         .show(ui, |ui| {
             ui.label(
                 RichText::new("Status Details")
@@ -242,7 +242,7 @@ pub fn render_sender_tab(ui: &mut egui::Ui, sender_state: &SenderState) {
         .fill(Color32::from_rgb(30, 35, 45))
         .rounding(8.0)
         .inner_margin(16.0)
-        .stroke(egui::Stroke::new(1.0, Color32::from_rgb(60, 70, 90)))
+        .stroke(egui::Stroke::new(1.0_f32, Color32::from_rgb(60, 70, 90)))
         .show(ui, |ui| {
             ui.label(
                 RichText::new("ℹ About the Sender")
@@ -303,7 +303,7 @@ pub fn render_sender_tab(ui: &mut egui::Ui, sender_state: &SenderState) {
             .fill(Color32::from_rgb(60, 30, 30))
             .rounding(8.0)
             .inner_margin(12.0)
-            .stroke(egui::Stroke::new(2.0, Color32::from_rgb(200, 80, 80)))
+            .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(200, 80, 80)))
             .show(ui, |ui| {
                 ui.label(
                     RichText::new("⚠ Last Error")

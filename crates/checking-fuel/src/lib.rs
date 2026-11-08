@@ -1,7 +1,7 @@
+use checking_protocol::TelemetryFrame;
 use chrono::{DateTime, Local};
 use std::collections::VecDeque;
 use std::time::Instant;
-use checking_protocol::TelemetryFrame;
 
 // irsdk_CarLeftRight values
 pub const LR_OFF: i32 = 0;
@@ -264,37 +264,25 @@ pub fn simulate_race_strategy(
     }
 }
 
-/// Runs the 4 strategy simulations (LOW, AVG, PUSH, MAX).
+/// Runs one strategy simulation for each fuel use per lap in
+/// `fuel_per_lap`. The results are in the same order as the input, which is
+/// LOW, AVG, PUSH and MAX.
 pub fn compute_all_simulations(
     current_fuel: f32,
     current_lap_fractional: f32,
     total_laps: i32,
     fuel_capacity: f32,
-    low: f32,
-    avg: f32,
-    push: f32,
-    max: f32,
+    fuel_per_lap: [f32; 4],
 ) -> [SimulationResult; 4] {
-    let strategies = [low, avg, push, max];
-    let mut results = Vec::with_capacity(4);
-
-    for fuel_per_lap in strategies {
-        let result = simulate_race_strategy(
+    fuel_per_lap.map(|fuel_per_lap| {
+        simulate_race_strategy(
             current_fuel,
             current_lap_fractional,
             total_laps,
             fuel_per_lap,
             fuel_capacity,
-        );
-        results.push(result);
-    }
-
-    [
-        results[0].clone(),
-        results[1].clone(),
-        results[2].clone(),
-        results[3].clone(),
-    ]
+        )
+    })
 }
 
 #[derive(Clone)]
@@ -1515,47 +1503,6 @@ impl AppState {
             .filter(|(_, fuel)| filtered_fuel.contains(fuel))
             .collect()
     }
-
-    /// Makes the snapshot data for the session log. Returns: (lap_number, laps_remaining,
-    /// fuel_in_tank, max_estimate, high_estimate, avg_estimate, low_estimate, estimation,
-    /// session_time). The "estimation" field is AVG, because the strategy uses AVG most.
-    pub fn get_snapshot_data(
-        &self,
-    ) -> (
-        i32,
-        f32,
-        f32,
-        Option<f32>,
-        Option<f32>,
-        Option<f32>,
-        Option<f32>,
-        Option<f32>,
-        f64,
-    ) {
-        let total_laps = self.get_effective_total_laps();
-        let current_lap_fractional = self.get_current_lap_fractional();
-        let laps_remaining = (total_laps as f32 - current_lap_fractional).max(0.0);
-
-        let max_estimate = self.max_fuel_usage();
-        let high_estimate = self.avg_fuel_push_pct_of_total(total_laps); // PUSH
-        let avg_estimate = self.avg_fuel_pct_of_total(total_laps); // AVG
-        let low_estimate = self.avg_fuel_low_pct_of_total(total_laps); // LOW
-
-        // Use AVG as the "estimation" value, because the strategy uses it most.
-        let estimation = avg_estimate;
-
-        (
-            self.current_lap,
-            laps_remaining,
-            self.latest_frame.fuel_level,
-            max_estimate,
-            high_estimate,
-            avg_estimate,
-            low_estimate,
-            estimation,
-            self.latest_frame.session_time,
-        )
-    }
 }
 
 impl Default for AppState {
@@ -1992,7 +1939,9 @@ mod tests {
 
         println!("\nLap eligibility:");
         println!("  Total laps: {}", state.lap_data.len());
-        println!("  Eligible laps should exclude: lap 1 (first), lap 6 (yellow), lap 7 (first after yellow), lap 11 (pit)");
+        println!(
+            "  Eligible laps should exclude: lap 1 (first), lap 6 (yellow), lap 7 (first after yellow), lap 11 (pit)"
+        );
         println!("  Expected eligible: laps 2,3,4,5,8,9,10,12,13,14,15 (11 laps)");
 
         let all_assigned: Vec<i32> = avg_laps
@@ -3492,7 +3441,7 @@ mod tests {
         let avg_val = avg.unwrap();
         println!("Average with outlier: {}", avg_val);
         // Depending on filtering, should be between 2.5 and 2.75
-        assert!(avg_val >= 2.4 && avg_val <= 3.0);
+        assert!((2.4..=3.0).contains(&avg_val));
     }
 
     #[test]
@@ -3549,15 +3498,16 @@ mod tests {
 
     /// Frame with a rival `gap_m` in front of the player (negative is behind).
     fn length_frame(clr: i32, gap_m: f32, rival_class: i32) -> TelemetryFrame {
-        let mut frame = TelemetryFrame::default();
-        frame.car_left_right = clr;
-        frame.track_length_meters = TRACK_M;
-        frame.player_car_idx = 0;
-        frame.drivers = vec![
-            length_driver(0, 0.5, 1),
-            length_driver(1, 0.5 + gap_m / TRACK_M, rival_class),
-        ];
-        frame
+        TelemetryFrame {
+            car_left_right: clr,
+            track_length_meters: TRACK_M,
+            player_car_idx: 0,
+            drivers: vec![
+                length_driver(0, 0.5, 1),
+                length_driver(1, 0.5 + gap_m / TRACK_M, rival_class),
+            ],
+            ..Default::default()
+        }
     }
 
     /// Runs one alongside to clear cycle, which gives one sample.
@@ -3579,7 +3529,7 @@ mod tests {
         let mut state = AppState::new();
         sample_once(&mut state, 0.4, 7); // too short
         sample_once(&mut state, 30.0, 7); // too long
-        assert!(state.car_length.get(&7).is_none());
+        assert!(!state.car_length.contains_key(&7));
     }
 
     #[test]
@@ -3599,7 +3549,7 @@ mod tests {
         for _ in 0..5 {
             state.update(length_frame(LR_CAR_LEFT, 4.2, 7), 0);
         }
-        assert!(state.car_length.get(&7).is_none());
+        assert!(!state.car_length.contains_key(&7));
     }
 
     #[test]
@@ -3629,7 +3579,7 @@ mod tests {
         let mut state = AppState::new();
         state.update(length_frame(LR_CLEAR, 4.2, 7), 0);
         state.update(length_frame(LR_CLEAR, 4.2, 7), 0);
-        assert!(state.car_length.get(&7).is_none());
+        assert!(!state.car_length.contains_key(&7));
     }
 
     #[test]

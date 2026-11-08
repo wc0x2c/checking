@@ -1,7 +1,7 @@
+use checking_fuel::AppState;
 use eframe::egui;
 use egui::{Color32, RichText};
 use egui_extras::{Column, TableBuilder};
-use checking_fuel::AppState;
 
 use crate::config::RelativeOverlayConfig;
 
@@ -60,7 +60,7 @@ pub fn render_relative_tab(
                 .fill(CARD_BACKGROUND_COLOR)
                 .rounding(8.0)
                 .inner_margin(16.0)
-                .stroke(egui::Stroke::new(2.0, Color32::from_rgb(60, 70, 80)))
+                .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(60, 70, 80)))
                 .show(ui, |ui| {
                     ui.label(
                         RichText::new("Telemetry Frame Info")
@@ -94,7 +94,7 @@ pub fn render_relative_tab(
                 .fill(CARD_BACKGROUND_COLOR)
                 .rounding(8.0)
                 .inner_margin(16.0)
-                .stroke(egui::Stroke::new(2.0, Color32::from_rgb(60, 70, 80)))
+                .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(60, 70, 80)))
                 .show(ui, |ui| {
                     ui.label(
                         RichText::new("Relative Overlay Config")
@@ -131,7 +131,7 @@ pub fn render_relative_tab(
                 .fill(CARD_BACKGROUND_COLOR)
                 .rounding(8.0)
                 .inner_margin(16.0)
-                .stroke(egui::Stroke::new(2.0, Color32::from_rgb(60, 70, 80)))
+                .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(60, 70, 80)))
                 .show(ui, |ui| {
                     ui.label(
                         RichText::new("Buddy List (Friends)")
@@ -201,7 +201,7 @@ pub fn render_relative_tab(
                 .fill(CARD_BACKGROUND_COLOR)
                 .rounding(8.0)
                 .inner_margin(16.0)
-                .stroke(egui::Stroke::new(2.0, Color32::from_rgb(80, 40, 40)))
+                .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(80, 40, 40)))
                 .show(ui, |ui| {
                     ui.label(
                         RichText::new("⚠ Warning List (Dangerous Drivers)")
@@ -271,7 +271,7 @@ pub fn render_relative_tab(
                     .fill(Color32::from_rgb(60, 40, 30))
                     .rounding(8.0)
                     .inner_margin(16.0)
-                    .stroke(egui::Stroke::new(2.0, Color32::from_rgb(200, 100, 50)))
+                    .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(200, 100, 50)))
                     .show(ui, |ui| {
                         // This height is the same as the driver table. When
                         // telemetry starts, the table replaces this frame.
@@ -393,7 +393,7 @@ pub fn render_relative_tab(
                     .fill(CARD_BACKGROUND_COLOR)
                     .rounding(8.0)
                     .inner_margin(16.0)
-                    .stroke(egui::Stroke::new(2.0, Color32::from_rgb(60, 70, 80)))
+                    .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(60, 70, 80)))
                     .show(ui, |ui| {
                         ui.set_min_height(DRIVER_SECTION_HEIGHT);
                         ui.label(
@@ -583,7 +583,7 @@ pub fn render_relative_tab(
                         .fill(CARD_BACKGROUND_COLOR)
                         .rounding(8.0)
                         .inner_margin(16.0)
-                        .stroke(egui::Stroke::new(2.0, Color32::from_rgb(60, 70, 80)))
+                        .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(60, 70, 80)))
                         .show(ui, |ui| {
                             ui.label(
                                 RichText::new("Relative Calculations (from player perspective)")
