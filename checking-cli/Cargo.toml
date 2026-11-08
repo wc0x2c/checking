@@ -1,12 +1,16 @@
 [package]
-name = "checking"
+name = "checking-cli"
 description = "GUI for iRacing fuel strategy"
+readme = "../README.md"
 version.workspace = true
 authors.workspace = true
 license.workspace = true
 edition.workspace = true
 repository.workspace = true
 rust-version.workspace = true
+keywords.workspace = true
+categories = ["games", "gui"]
+include = ["src/**", "LICENSE-*"]
 
 [[bin]]
 name = "checking"

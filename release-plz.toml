@@ -1,0 +1,31 @@
+# Every crate shares the version of the workspace, so one tag, one GitHub
+# release and one changelog, those of `checking-cli`, cover them all.
+[workspace]
+git_tag_enable = false
+git_release_enable = false
+changelog_update = false
+semver_check = true
+pr_labels = ["release"]
+
+# The entries of CHANGELOG.md are written by hand under "Unreleased". A
+# release adds only its heading above them, and no entry from the commits.
+# With `trim` on, the heading joins the line that comes after it.
+[changelog]
+trim = false
+body = """
+## [{{ version }}]{%- if release_link -%}({{ release_link }}){% endif %} - {{ timestamp | date(format="%Y-%m-%d") }}
+"""
+
+[[package]]
+name = "checking-cli"
+git_tag_enable = true
+git_tag_name = "v{{ version }}"
+git_release_enable = true
+git_release_draft = false
+changelog_update = true
+changelog_path = "./CHANGELOG.md"
+changelog_include = [
+    "checking-protocol",
+    "checking-fuel",
+    "checking-iracingio",
+]

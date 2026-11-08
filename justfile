@@ -13,3 +13,45 @@ deploy: windows
 # Build the custom cross image (Arch mingw with Windows 10 headers) one time.
 cross-image:
     docker build -f docker/cross-windows-ai.Dockerfile -t checking-cross-win-ai:latest docker/
+
+build:
+    cargo build --release
+
+test *args: build
+    cargo nextest run --release {{args}}
+
+# The same as `test`. The workspace has no slow tests yet.
+quick-test *args: build
+    cargo nextest run --release {{args}}
+
+lint:
+    cargo fmt
+    cargo clippy --all-targets -- -D warnings
+
+# Cargo publishes each crate after the crates it needs. Give `--dry-run` to
+# check without upload.
+# Publish every crate of the workspace to crates.io.
+publish *args:
+    cargo publish --workspace {{args}}
+
+windows_target := "x86_64-pc-windows-gnu"
+
+# This recipe uses the image that Cross.toml names. If the stock image fails
+# with "GLIBC_2.28 not found", set CROSS_TARGET_X86_64_PC_WINDOWS_GNU_IMAGE as
+# the `windows` recipe does.
+# Build the Windows binary that a release attaches, in target/x86_64-pc-windows-gnu/dist/.
+dist:
+    cross build --locked --profile dist --target {{windows_target}} --bin checking
+
+# The zip holds the Windows binary, the README and the licenses.
+# Put the assets of a release in target/release-assets/. Give the tag, as `v0.1.0`.
+release-assets tag: dist
+    #!/usr/bin/env bash
+    set -euo pipefail
+    out=target/release-assets
+    rm -rf "$out"
+    mkdir -p "$out"
+    zip --junk-paths "$out/checking-{{tag}}-{{windows_target}}.zip" \
+        "target/{{windows_target}}/dist/checking.exe" \
+        README.md LICENSE-APACHE LICENSE-MIT
+    ls "$out"

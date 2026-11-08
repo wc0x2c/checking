@@ -3,7 +3,7 @@ members = [
     "crates/checking-protocol",
     "crates/checking-fuel",
     "crates/checking-iracingio",
-    "checking",
+    "checking-cli",
 ]
 resolver = "3"
 
@@ -14,6 +14,7 @@ license = "MIT OR Apache-2.0"
 edition = "2024"
 repository = "https://github.com/wc0x2c/checking"
 rust-version = "1.90"
+keywords = ["iracing", "telemetry", "simracing", "fuel"]
 
 [workspace.dependencies]
 tokio = { version = "1.45", features = ["full"] }
@@ -25,3 +26,8 @@ deku = "0.20"
 # Make the binaries smaller.
 strip = true
 lto = true
+
+# Release(dist) binaries are setup for maximum runtime speed, at the cost of CI time
+[profile.dist]
+inherits = "release"
+codegen-units = 1

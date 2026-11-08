@@ -25,7 +25,7 @@ race:
 ## Build
 
 ```bash
-cargo build -p checking --release
+cargo build -p checking-cli --release
 ```
 
 For the Windows builds, see the recipes in the `justfile` at the top of the
@@ -34,7 +34,7 @@ repository.
 ## Run
 
 ```bash
-cargo run -p checking --release
+cargo run -p checking-cli --release
 ```
 
 The application listens for telemetry on `0.0.0.0:5555`.
