@@ -4,11 +4,15 @@
 //! presses, which the driver cannot do at speed. This module does what a Pulover Macro Creator
 //! macro did before: it reads the joystick buttons, and on each new press it sends the key.
 //!
+//! The buttons are read also while the keys of an earlier press are sent. Thus a fast double press
+//! gives two times the key presses, and the second press does not get lost.
+//!
 //! The joystick numbers are the same as in AutoHotkey and Pulover, thus `2Joy8` is joystick 2,
 //! button 8. The keys go to the window that has the focus, as with the Pulover macro.
 
 use core::time::Duration;
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 
 /// Highest button number that the Windows joystick API reports.
 pub const MAX_BUTTON: u32 = 32;
@@ -143,6 +147,11 @@ pub struct Worker<J, K, S> {
     keyboard: K,
     sleep: S,
     detector: PressDetector,
+    /// The key presses that wait to be sent, in the order of the button presses.
+    queue: VecDeque<Direction>,
+    /// Time until the next key press can be sent. Only `sleep` lets time go by, because a read and
+    /// a key press take almost no time. Thus the worker counts this time down with each sleep.
+    wait: Duration,
 }
 
 impl<J: Joystick, K: Keyboard, S: FnMut(Duration)> Worker<J, K, S> {
@@ -152,15 +161,20 @@ impl<J: Joystick, K: Keyboard, S: FnMut(Duration)> Worker<J, K, S> {
             keyboard,
             sleep,
             detector: PressDetector::default(),
+            queue: VecDeque::new(),
+            wait: Duration::ZERO,
         }
     }
 
-    /// Reads the buttons one time, sends the keys for each new press, and then waits until the
-    /// next read.
+    /// Reads the buttons one time, adds the key presses of each new press to the queue, sends the
+    /// key presses that are due, and then waits until the next read.
     pub fn poll(&mut self, config: &WeightJackerConfig) {
         if !config.enabled {
-            // Forget the buttons, so that a button held when the function goes on is not a press.
+            // Forget the buttons and the queue, so that nothing is sent after the function goes
+            // off, and a button held when the function goes on is not a press.
             self.detector = PressDetector::default();
+            self.queue.clear();
+            self.wait = Duration::ZERO;
             (self.sleep)(DISABLED_PERIOD);
             return;
         }
@@ -169,19 +183,27 @@ impl<J: Joystick, K: Keyboard, S: FnMut(Duration)> Worker<J, K, S> {
         // connects again counts as a new press.
         let buttons = self.joystick.buttons(config.joystick).unwrap_or(0);
         for direction in self.detector.update(buttons, config) {
-            self.send(direction, config);
+            self.queue
+                .extend(core::iter::repeat_n(direction, config.presses as usize));
         }
-        (self.sleep)(POLL_PERIOD);
-    }
 
-    fn send(&mut self, direction: Direction, config: &WeightJackerConfig) {
         let delay = Duration::from_millis(u64::from(config.delay_ms));
-        for press in 0..config.presses {
-            if press > 0 {
-                (self.sleep)(delay);
-            }
+        while self.wait.is_zero() {
+            let Some(direction) = self.queue.pop_front() else {
+                break;
+            };
             self.keyboard.tap(direction);
+            self.wait = delay;
         }
+
+        // Wake up when the next key press is due, if that is before the next read.
+        let period = if self.queue.is_empty() {
+            POLL_PERIOD
+        } else {
+            self.wait.min(POLL_PERIOD)
+        };
+        (self.sleep)(period);
+        self.wait = self.wait.saturating_sub(period);
     }
 }
 
@@ -300,10 +322,15 @@ mod tests {
         }
     }
 
-    /// Polls one time for each read, and returns the events and the joysticks that were read.
-    fn run(config: &WeightJackerConfig, reads: Vec<Option<u32>>) -> (Vec<Event>, Vec<u32>) {
+    /// Polls `polls` times, and returns the events and the joysticks that were read. The joystick
+    /// gives the masks of `reads` in sequence. After them, it is disconnected, thus the extra polls
+    /// send the key presses that are still in the queue.
+    fn run(
+        config: &WeightJackerConfig,
+        reads: Vec<Option<u32>>,
+        polls: usize,
+    ) -> (Vec<Event>, Vec<u32>) {
         let events = std::cell::RefCell::new(Vec::new());
-        let polls = reads.len();
         let joystick = FakeJoystick {
             reads: reads.into_iter(),
             joysticks_read: Vec::new(),
@@ -320,13 +347,31 @@ mod tests {
     }
 
     fn taps(events: &[Event]) -> Vec<Direction> {
+        tap_times(events).into_iter().map(|(_, d)| d).collect()
+    }
+
+    /// The time of each key press from the start, from the sum of the sleeps before it.
+    fn tap_times(events: &[Event]) -> Vec<(Duration, Direction)> {
+        let mut now = Duration::ZERO;
         events
             .iter()
             .filter_map(|e| match e {
-                Event::Tap(d) => Some(*d),
-                Event::Sleep(_) => None,
+                Event::Tap(d) => Some((now, *d)),
+                Event::Sleep(duration) => {
+                    now += *duration;
+                    None
+                }
             })
             .collect()
+    }
+
+    fn ms(values: &[u64]) -> Vec<Duration> {
+        values.iter().map(|v| Duration::from_millis(*v)).collect()
+    }
+
+    /// Enough polls to send all key presses of `button_presses` presses with the default delay.
+    const fn drain_polls(button_presses: usize) -> usize {
+        button_presses * 5 * 5 + 1
     }
 
     #[test]
@@ -400,32 +445,57 @@ mod tests {
 
     #[test]
     fn one_press_sends_the_key_with_the_delay_between_presses() {
-        let (events, joysticks_read) = run(&enabled(), vec![Some(UP_MASK)]);
+        let (events, joysticks_read) = run(&enabled(), vec![Some(UP_MASK)], drain_polls(1));
 
-        let delay = Event::Sleep(Duration::from_millis(50));
-        let tap = Event::Tap(Direction::Up);
         assert_eq!(
-            events,
-            [
-                tap,
-                delay,
-                tap,
-                delay,
-                tap,
-                delay,
-                tap,
-                delay,
-                tap,
-                Event::Sleep(POLL_PERIOD),
-            ]
+            tap_times(&events),
+            ms(&[0, 50, 100, 150, 200])
+                .into_iter()
+                .map(|t| (t, Direction::Up))
+                .collect::<Vec<_>>()
         );
-        assert_eq!(joysticks_read, [2]);
+        assert!(joysticks_read.iter().all(|j| *j == 2));
+    }
+
+    /// The second press comes while the key presses of the first are still sent. It must add its
+    /// own key presses, at the same delay, after the first ones.
+    #[test]
+    fn a_fast_double_press_sends_both_counts() {
+        let reads = vec![Some(UP_MASK), Some(0), Some(UP_MASK)];
+        let (events, _) = run(&enabled(), reads, drain_polls(2));
+
+        let times: Vec<Duration> = tap_times(&events).into_iter().map(|(t, _)| t).collect();
+        assert_eq!(times, ms(&[0, 50, 100, 150, 200, 250, 300, 350, 400, 450]));
+        assert_eq!(taps(&events), [Direction::Up; 10]);
+    }
+
+    #[test]
+    fn presses_in_both_directions_keep_their_order() {
+        let reads = vec![Some(UP_MASK), Some(DOWN_MASK)];
+        let (events, _) = run(&enabled(), reads, drain_polls(2));
+
+        let mut expected = vec![Direction::Up; 5];
+        expected.extend([Direction::Down; 5]);
+        assert_eq!(taps(&events), expected);
     }
 
     #[test]
     fn the_down_button_sends_the_down_key() {
-        let (events, _) = run(&enabled(), vec![Some(DOWN_MASK)]);
+        let (events, _) = run(&enabled(), vec![Some(DOWN_MASK)], drain_polls(1));
         assert_eq!(taps(&events), [Direction::Down; 5]);
+    }
+
+    #[test]
+    fn zero_delay_sends_all_key_presses_at_once() {
+        let config = WeightJackerConfig {
+            delay_ms: 0,
+            ..enabled()
+        };
+        let (events, _) = run(&config, vec![Some(UP_MASK)], 1);
+
+        let mut expected = vec![Event::Tap(Direction::Up); 5];
+        expected.push(Event::Sleep(POLL_PERIOD));
+        assert_eq!(events, expected);
     }
 
     #[test]
@@ -433,6 +503,7 @@ mod tests {
         let (events, joysticks_read) = run(
             &WeightJackerConfig::default(),
             vec![Some(UP_MASK), Some(0), Some(UP_MASK)],
+            3,
         );
 
         assert!(taps(&events).is_empty());
@@ -441,8 +512,30 @@ mod tests {
     }
 
     #[test]
+    fn turning_the_function_off_drops_the_queued_key_presses() {
+        let events = std::cell::RefCell::new(Vec::new());
+        let joystick = FakeJoystick {
+            reads: vec![Some(UP_MASK)].into_iter(),
+            joysticks_read: Vec::new(),
+        };
+        let mut worker = Worker::new(joystick, FakeKeyboard(&events), |duration| {
+            events.borrow_mut().push(Event::Sleep(duration));
+        });
+
+        worker.poll(&enabled());
+        worker.poll(&WeightJackerConfig::default());
+        for _ in 0..drain_polls(1) {
+            worker.poll(&enabled());
+        }
+        drop(worker);
+
+        assert_eq!(taps(&events.into_inner()), [Direction::Up]);
+    }
+
+    #[test]
     fn a_disconnected_joystick_releases_its_buttons() {
-        let (events, _) = run(&enabled(), vec![Some(UP_MASK), None, Some(UP_MASK)]);
+        let reads = vec![Some(UP_MASK), None, Some(UP_MASK)];
+        let (events, _) = run(&enabled(), reads, drain_polls(2));
         assert_eq!(taps(&events), [Direction::Up; 10]);
     }
 
@@ -452,7 +545,7 @@ mod tests {
             presses: 0,
             ..enabled()
         };
-        let (events, _) = run(&config, vec![Some(UP_MASK)]);
+        let (events, _) = run(&config, vec![Some(UP_MASK)], 1);
         assert_eq!(events, [Event::Sleep(POLL_PERIOD)]);
     }
 
@@ -463,16 +556,21 @@ mod tests {
     }
 
     proptest! {
-        /// For each list of button masks, each direction gets exactly one burst for each change of
-        /// its button from released to pressed.
+        /// For each list of button masks, each direction gets `presses` key presses for each change
+        /// of its button from released to pressed, also when the presses come faster than the keys
+        /// are sent. Two key presses are never closer than the delay.
         #[test]
-        fn one_burst_for_each_new_press(
+        fn all_key_presses_are_sent_at_the_delay(
             masks in proptest::collection::vec(any::<u32>(), 0..64),
             presses in 0u32..8,
+            delay_ms in 0u32..100,
         ) {
-            let config = WeightJackerConfig { presses, ..enabled() };
-            let reads = masks.iter().copied().map(Some).collect();
-            let (events, _) = run(&config, reads);
+            let config = WeightJackerConfig { presses, delay_ms, ..enabled() };
+            let reads: Vec<_> = masks.iter().copied().map(Some).collect();
+            // Each key press waits at most delay_ms / 10 + 1 polls.
+            let max_taps = 2 * masks.len() * presses as usize;
+            let polls = masks.len() + max_taps * (delay_ms as usize / 10 + 1) + 1;
+            let (events, _) = run(&config, reads, polls);
 
             let new_presses = |mask: u32| {
                 let mut previous = false;
@@ -492,6 +590,12 @@ mod tests {
 
             prop_assert_eq!(ups, new_presses(UP_MASK) * presses);
             prop_assert_eq!(downs, new_presses(DOWN_MASK) * presses);
+
+            let delay = Duration::from_millis(u64::from(delay_ms));
+            let times: Vec<Duration> = tap_times(&events).into_iter().map(|(t, _)| t).collect();
+            for pair in times.windows(2) {
+                prop_assert!(pair[1] - pair[0] >= delay, "{:?} then {:?}", pair[0], pair[1]);
+            }
         }
     }
 }
