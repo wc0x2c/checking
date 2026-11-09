@@ -310,19 +310,9 @@ pub fn render_fuel_tab(
             };
             let laps_avg = laps_of(out_avg);
             let laps_push = laps_of(out_push);
-            let laps_low = laps_of(out_low);
-            let laps_max = laps_of(out_max);
 
             let laps_to_go = analysis.laps_to_go;
 
-            // Fuel to add at each stop, for the strategy markers on the FUEL TO ADD card.
-            let fill_of = |o: Option<&crate::strategy::StrategyOutcome>| {
-                o.and_then(|o| o.fuel_at_first_stop).unwrap_or(0.0)
-            };
-            let fuel_add_avg = fill_of(out_avg);
-            let fuel_add_push = fill_of(out_push);
-            let fuel_add_low = fill_of(out_low);
-            let fuel_add_max = fill_of(out_max);
 
             // Current status cards in a grid.
             //
@@ -381,24 +371,12 @@ pub fn render_fuel_tab(
                 ui.add_space(8.0);
 
                 // Fuel to Add.
-                let card_rate = |fuel_to_add, fuel_per_lap: Option<f32>, laps_on_fuel| {
-                    super::CardRate {
-                        fuel_to_add,
-                        fuel_per_lap: fuel_per_lap.unwrap_or(0.0),
-                        laps_on_fuel,
-                    }
-                };
                 super::render_fuel_to_add_card(
                     ui,
                     pit_sv_fuel,
                     state.latest_frame.fuel_level,
                     fuel_capacity,
-                    &[
-                        card_rate(fuel_add_low, low_5_green, laps_low),
-                        card_rate(fuel_add_avg, avg_10_green, laps_avg),
-                        card_rate(fuel_add_push, avg_5_push, laps_push),
-                        card_rate(fuel_add_max, max_single, laps_max),
-                    ],
+                    &super::CardRate::from_analysis(&analysis),
                 );
 
             });

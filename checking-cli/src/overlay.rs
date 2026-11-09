@@ -59,61 +59,17 @@ pub fn render_fuel_to_add_overlay(
     extra_liters: f32,
     fuel_tank_pct: Option<f32>,
 ) -> egui::Response {
-    let total_laps = state.get_effective_total_laps();
-    let avg_10_green = state.avg_fuel_pct_of_total(total_laps);
-    let avg_5_push = state.avg_fuel_push_pct_of_total(total_laps);
-    let low_5_green = state.avg_fuel_low_pct_of_total(total_laps);
-    let max_single = state.max_fuel_usage();
-
-    let fuel_add_avg = if let Some(avg) = avg_10_green {
-        state.fuel_to_finish_avg(total_laps, avg) + extra_liters
-    } else {
-        0.0
-    };
-    let fuel_add_push = if let Some(push) = avg_5_push {
-        state.fuel_to_finish_push(total_laps, push) + extra_liters
-    } else {
-        0.0
-    };
-    let fuel_add_low = if let Some(low) = low_5_green {
-        let current_lap_fractional = state.get_current_lap_fractional();
-        let laps_to_go = (total_laps as f32 - current_lap_fractional).max(0.0);
-        let fuel_needed = laps_to_go * low + extra_liters;
-        (fuel_needed - state.latest_frame.fuel_level).max(0.0)
-    } else {
-        0.0
-    };
-    let fuel_add_max = if let Some(max) = max_single {
-        let current_lap_fractional = state.get_current_lap_fractional();
-        let laps_to_go = (total_laps as f32 - current_lap_fractional).max(0.0);
-        let fuel_needed = laps_to_go * max + extra_liters;
-        (fuel_needed - state.latest_frame.fuel_level).max(0.0)
-    } else {
-        0.0
-    };
-
-    let pit_sv_fuel = state.latest_frame.pit_sv_fuel;
     let fuel_capacity =
         pages::get_effective_fuel_capacity(state.get_fuel_capacity(), fuel_tank_pct);
-
-    let card_rate = |fuel_to_add: f32, fuel_per_lap: Option<f32>| pages::CardRate {
-        fuel_to_add,
-        fuel_per_lap: fuel_per_lap.unwrap_or(0.0),
-        laps_on_fuel: fuel_per_lap.map_or(0.0, |rate| state.laps_remaining(rate)),
-    };
-    let rates = [
-        card_rate(fuel_add_low, low_5_green),
-        card_rate(fuel_add_avg, avg_10_green),
-        card_rate(fuel_add_push, avg_5_push),
-        card_rate(fuel_add_max, max_single),
-    ];
+    let analysis = crate::strategy::analyze(state, extra_liters, fuel_capacity);
+    let rates = pages::CardRate::from_analysis(&analysis);
 
     let frame_response = egui::Frame::none()
         .outer_margin(egui::Margin::symmetric(1.0, 1.0))
         .show(ui, |ui| {
             pages::render_fuel_to_add_card(
                 ui,
-                pit_sv_fuel,
+                state.latest_frame.pit_sv_fuel,
                 state.latest_frame.fuel_level,
                 fuel_capacity,
                 &rates,

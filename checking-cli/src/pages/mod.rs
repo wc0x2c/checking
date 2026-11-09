@@ -291,13 +291,31 @@ const CARD_RATES: [(&str, Color32); 4] = [
 
 /// The values of one fuel rate on the fuel to add card. A value of 0 means that the rate is not
 /// known, and the card shows no marker and a dash.
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default, PartialEq)]
 pub struct CardRate {
-    /// Liters to add now to get to the finish at this rate.
+    /// Liters to set in the pit menu for the first stop at this rate. 0 when no stop is necessary.
     pub fuel_to_add: f32,
     pub fuel_per_lap: f32,
     /// Number of laps that the current fuel is sufficient for at this rate.
     pub laps_on_fuel: f32,
+}
+
+impl CardRate {
+    /// Takes the values of the card from the strategy analysis, in the order LOW, AVG, PUSH, MAX.
+    /// The Fuel tab and the overlay both use this function, so that they show the same values.
+    pub fn from_analysis(analysis: &crate::strategy::StrategyAnalysis) -> [Self; 4] {
+        CARD_RATES.map(|(name, _)| {
+            analysis
+                .outcomes
+                .iter()
+                .find(|o| o.label == name)
+                .map_or_else(Self::default, |o| Self {
+                    fuel_to_add: o.fuel_at_first_stop.unwrap_or(0.0),
+                    fuel_per_lap: o.fuel_per_lap,
+                    laps_on_fuel: o.laps_on_current_fuel,
+                })
+        })
+    }
 }
 
 // Alias for backward compatibility.
@@ -1045,5 +1063,75 @@ mod tests {
         assert!(result.can_finish);
         // ~50L tank, 108L needed = 2+ stops
         assert!(result.num_stops >= 2);
+    }
+
+    // Tests for CardRate::from_analysis
+
+    const CARD_CAP: f32 = 60.0;
+    const CARD_MARGIN: f32 = 0.5;
+
+    const ALL_SCENARIOS: [crate::scenario::Scenario; 7] = [
+        crate::scenario::Scenario::MidRace,
+        crate::scenario::Scenario::Marginal,
+        crate::scenario::Scenario::LongRun,
+        crate::scenario::Scenario::NoData,
+        crate::scenario::Scenario::Timed,
+        crate::scenario::Scenario::Yellow,
+        crate::scenario::Scenario::Urgent,
+    ];
+
+    #[test]
+    fn card_rates_are_empty_without_lap_data() {
+        let state = crate::scenario::Scenario::NoData.build();
+        let analysis = crate::strategy::analyze(&state, CARD_MARGIN, CARD_CAP);
+
+        assert_eq!(CardRate::from_analysis(&analysis), [CardRate::default(); 4]);
+    }
+
+    /// The card shows the pit menu fill of each outcome, in the order LOW, AVG, PUSH, MAX.
+    #[test]
+    fn card_rates_follow_the_outcomes_in_order() {
+        for scenario in ALL_SCENARIOS {
+            let state = scenario.build();
+            let analysis = crate::strategy::analyze(&state, CARD_MARGIN, CARD_CAP);
+            let rates = CardRate::from_analysis(&analysis);
+
+            for (rate, (name, _)) in rates.iter().zip(CARD_RATES) {
+                match analysis.outcomes.iter().find(|o| o.label == name) {
+                    Some(o) => {
+                        assert_eq!(rate.fuel_to_add, o.fuel_at_first_stop.unwrap_or(0.0));
+                        assert_eq!(rate.fuel_per_lap, o.fuel_per_lap);
+                        assert_eq!(rate.laps_on_fuel, o.laps_on_current_fuel);
+                    }
+                    None => assert_eq!(*rate, CardRate::default(), "{scenario:?} {name}"),
+                }
+            }
+        }
+    }
+
+    /// The fill is a value for the pit menu, so it is never more than the tank holds, and it is
+    /// 0 only when the rate needs no stop.
+    #[test]
+    fn card_fuel_to_add_fits_the_tank() {
+        for scenario in ALL_SCENARIOS {
+            let state = scenario.build();
+            let analysis = crate::strategy::analyze(&state, CARD_MARGIN, CARD_CAP);
+            let rates = CardRate::from_analysis(&analysis);
+
+            for (rate, (name, _)) in rates.iter().zip(CARD_RATES) {
+                assert!(
+                    (0.0..=CARD_CAP).contains(&rate.fuel_to_add),
+                    "{scenario:?} {name}: {}",
+                    rate.fuel_to_add
+                );
+                if let Some(o) = analysis.outcomes.iter().find(|o| o.label == name) {
+                    assert_eq!(
+                        rate.fuel_to_add > 0.0,
+                        o.pit_lap.is_some(),
+                        "{scenario:?} {name}"
+                    );
+                }
+            }
+        }
     }
 }
