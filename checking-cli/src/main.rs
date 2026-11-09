@@ -15,6 +15,10 @@ mod relative;
 #[cfg(test)]
 mod scenario;
 mod strategy;
+// Only Windows has the joystick and keyboard backend that starts the worker. The other targets
+// show and save the settings only.
+#[cfg_attr(not(windows), allow(dead_code))]
+mod weight_jacker;
 
 use config::OverlayConfig;
 
@@ -53,6 +57,11 @@ fn main() -> eframe::Result<()> {
     let state_clone = app_state.clone();
     let sender_state_clone = sender_state.clone();
 
+    let overlay_config = OverlayConfig::load();
+    let weight_jacker_config = Arc::new(Mutex::new(overlay_config.weight_jacker));
+    #[cfg(windows)]
+    weight_jacker::spawn(weight_jacker_config.clone());
+
     // Start the network listener and the sender on a background thread.
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
@@ -88,11 +97,10 @@ fn main() -> eframe::Result<()> {
             style.spacing.window_margin = egui::Margin::same(12.0);
             cc.egui_ctx.set_style(style);
 
-            let overlay_config = OverlayConfig::load();
-
             Ok(Box::new(FuelApp {
                 state: app_state,
                 sender_state,
+                weight_jacker_config,
                 current_tab: Tab::Main,
                 overlay_config,
                 frame_count: 0,
@@ -125,6 +133,8 @@ struct FuelEstimates {
 struct FuelApp {
     state: Arc<Mutex<AppState>>,
     sender_state: Arc<Mutex<SenderState>>,
+    /// The weight jacker settings that the input thread reads. The Options tab writes them.
+    weight_jacker_config: Arc<Mutex<weight_jacker::WeightJackerConfig>>,
     current_tab: Tab,
     overlay_config: OverlayConfig,
     frame_count: u64,
@@ -352,6 +362,8 @@ impl eframe::App for FuelApp {
                             &mut self.buddy_input,
                             &mut self.warning_input,
                         );
+                        *self.weight_jacker_config.lock().unwrap() =
+                            self.overlay_config.weight_jacker;
                     }
                     Tab::Relative => {
                         pages::render_relative_tab(ui, &state, &mut self.overlay_config.relative);
@@ -1195,6 +1207,87 @@ impl FuelApp {
     }
 }
 
+/// Settings of the weight jacker buttons. See `weight_jacker`.
+fn render_weight_jacker_settings(ui: &mut egui::Ui, config: &mut OverlayConfig) {
+    egui::Frame::none()
+        .fill(Color32::from_rgb(25, 30, 35))
+        .rounding(8.0)
+        .inner_margin(16.0)
+        .show(ui, |ui| {
+            ui.label(
+                RichText::new("Weight Jacker")
+                    .size(18.0)
+                    .strong()
+                    .color(Color32::LIGHT_BLUE),
+            );
+            ui.add_space(12.0);
+
+            let wj = &mut config.weight_jacker;
+            let mut changed = false;
+            egui::Grid::new("weight_jacker_grid")
+                .num_columns(2)
+                .spacing([20.0, 12.0])
+                .show(ui, |ui| {
+                    ui.label(RichText::new("Enabled:").size(14.0));
+                    changed |= ui.checkbox(&mut wj.enabled, "").changed();
+                    ui.end_row();
+
+                    ui.label(RichText::new("Joystick:").size(14.0));
+                    changed |= ui
+                        .add(
+                            egui::DragValue::new(&mut wj.joystick)
+                                .range(1..=weight_jacker::MAX_JOYSTICK),
+                        )
+                        .changed();
+                    ui.end_row();
+
+                    ui.label(RichText::new("Up button:").size(14.0));
+                    changed |= ui
+                        .add(
+                            egui::DragValue::new(&mut wj.up_button)
+                                .range(1..=weight_jacker::MAX_BUTTON),
+                        )
+                        .changed();
+                    ui.end_row();
+
+                    ui.label(RichText::new("Down button:").size(14.0));
+                    changed |= ui
+                        .add(
+                            egui::DragValue::new(&mut wj.down_button)
+                                .range(1..=weight_jacker::MAX_BUTTON),
+                        )
+                        .changed();
+                    ui.end_row();
+
+                    ui.label(RichText::new("Key presses:").size(14.0));
+                    changed |= ui.add(egui::Slider::new(&mut wj.presses, 1..=20)).changed();
+                    ui.end_row();
+
+                    ui.label(RichText::new("Delay:").size(14.0));
+                    changed |= ui
+                        .add(egui::Slider::new(&mut wj.delay_ms, 0..=500).suffix(" ms"))
+                        .changed();
+                    ui.end_row();
+                });
+            if changed {
+                let _ = config.save();
+            }
+
+            ui.add_space(8.0);
+            ui.label(
+                RichText::new(
+                    "One press of a wheel button sends the up or down arrow key the set number \
+                     of times. The joystick and button numbers are the same as in AutoHotkey and \
+                     Pulover Macro Creator: 2Joy8 is joystick 2, button 8. The keys go to the \
+                     window that has the focus. This works only on Windows.",
+                )
+                .size(12.0)
+                .italics()
+                .color(Color32::GRAY),
+            );
+        });
+}
+
 fn render_options_tab(
     ui: &mut egui::Ui,
     config: &mut OverlayConfig,
@@ -1771,6 +1864,10 @@ fn render_options_tab(
                         .color(Color32::GRAY),
                 );
             });
+
+        ui.add_space(16.0);
+
+        render_weight_jacker_settings(ui, config);
 
         ui.add_space(16.0);
 

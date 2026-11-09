@@ -1,3 +1,4 @@
+use crate::weight_jacker::WeightJackerConfig;
 use serde::{Deserialize, Serialize};
 use std::fs;
 use std::path::PathBuf;
@@ -26,6 +27,8 @@ pub struct OverlayConfig {
     pub radar_right: OverlayWindowConfig,
     #[serde(default)]
     pub radar: RadarOverlayConfig,
+    #[serde(default)]
+    pub weight_jacker: WeightJackerConfig,
     #[serde(default)]
     pub locked: bool,
     #[serde(default = "default_extra_liters")]
@@ -211,6 +214,7 @@ impl Default for OverlayConfig {
                 height: 120.0,
             },
             radar: RadarOverlayConfig::default(),
+            weight_jacker: WeightJackerConfig::default(),
             locked: true, // The windows cannot move until you unlock them.
             extra_liters: default_extra_liters(),
             fuel_tank_pct: None,
@@ -310,6 +314,7 @@ height = 120.0
         assert_eq!(cfg.radar_right.x, 1750.0);
 
         // The new settings get their default values, and the parse does not fail.
+        assert_eq!(cfg.weight_jacker, WeightJackerConfig::default());
         assert_eq!(cfg.radar.range_m, default_radar_range_m());
         assert_eq!(
             cfg.radar.fallback_car_length_m,
