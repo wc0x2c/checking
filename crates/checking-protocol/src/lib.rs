@@ -140,7 +140,7 @@ pub struct TelemetryFrame {
     // Car state
     pub fuel_level: f32,
     pub fuel_level_pct: f32, // Raw FuelLevelPct from SDK (0.0-1.0)
-    pub fuel_max_ltr: f32,   // Raw DriverCarFuelMaxLtr from SDK
+    pub fuel_max_ltr: f32,   // DriverCarFuelMaxLtr times DriverCarMaxFuelPct: the session limit
     pub fuel_use_per_hour: f32,
     pub fuel_capacity: f32, // Calculated tank capacity in liters
     pub pit_sv_fuel: f32,   // Pit service fuel add amount in liters

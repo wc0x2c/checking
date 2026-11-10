@@ -1,5 +1,8 @@
+mod fuel_limit;
 #[cfg(windows)]
 mod irsdk;
+
+pub use fuel_limit::{fuel_capacity, session_max_fuel_ltr};
 
 #[cfg(windows)]
 use anyhow::Result;
@@ -45,8 +48,6 @@ struct SessionInfo {
 #[cfg(windows)]
 #[derive(Debug, Deserialize)]
 struct DriverInfoSection {
-    #[serde(rename = "DriverCarFuelMaxLtr", default)]
-    driver_car_fuel_max_ltr: f32,
     #[serde(rename = "Drivers")]
     drivers: Vec<SessionDriver>,
 }
@@ -167,8 +168,8 @@ pub async fn run_sender_loop(sender_state: Arc<Mutex<SenderState>>) {
             if session_info_update != last_session_info_update {
                 last_session_info_update = session_info_update;
                 if let Ok(yaml) = irsdk.get_session_info() {
-                    if let Ok(info) = serde_yaml::from_str::<SessionInfo>(&yaml) {
-                        cached_fuel_max_ltr = info.driver_info.driver_car_fuel_max_ltr;
+                    if let Some(max_fuel) = session_max_fuel_ltr(&yaml) {
+                        cached_fuel_max_ltr = max_fuel;
                     }
                     // Returns 0.0 if the YAML has no track length.
                     let track_length = parse_track_length_from_yaml(&yaml);
@@ -458,23 +459,11 @@ fn extract_telemetry(
         fuel_max_ltr: cached_fuel_max_ltr,
         fuel_use_per_hour: get_var!(get_var_f32, "FuelUsePerHour", 0.0),
         pit_sv_fuel: get_var!(get_var_f32, "PitSvFuel", 0.0),
-        fuel_capacity: {
-            let driver_max = cached_fuel_max_ltr;
-            let fuel_level_pct = get_var!(get_var_f32, "FuelLevelPct", 0.0);
-            let fuel_level = get_var!(get_var_f32, "FuelLevel", 0.0);
-
-            if fuel_level_pct > 0.001 && fuel_level > 0.0 {
-                let calculated = fuel_level / fuel_level_pct;
-                if driver_max < 1.0 || (calculated > 10.0 && (driver_max - calculated).abs() > 10.0)
-                {
-                    calculated
-                } else {
-                    driver_max
-                }
-            } else {
-                driver_max.max(0.0)
-            }
-        },
+        fuel_capacity: fuel_capacity(
+            cached_fuel_max_ltr,
+            get_var!(get_var_f32, "FuelLevel", 0.0),
+            get_var!(get_var_f32, "FuelLevelPct", 0.0),
+        ),
         oil_temp: get_var!(get_var_f32, "OilTemp", 0.0),
         water_temp: get_var!(get_var_f32, "WaterTemp", 0.0),
         oil_pressure: get_var!(get_var_f32, "OilPress", 0.0),

@@ -209,7 +209,7 @@ fn render_fuel_capacity_debug(ui: &mut egui::Ui, state: &AppState) {
                     );
                     ui.end_row();
 
-                    ui.label("DriverCarFuelMaxLtr (SDK):");
+                    ui.label("Max fuel (SDK tank x league limit):");
                     ui.label(
                         RichText::new(format!("{:.3} L", state.latest_frame.fuel_max_ltr))
                             .color(Color32::YELLOW)
@@ -244,7 +244,7 @@ fn render_fuel_capacity_debug(ui: &mut egui::Ui, state: &AppState) {
                         ui.label(RichText::new("WARNING:").color(Color32::RED).strong());
                         ui.label(
                             RichText::new(format!(
-                                "SDK max ({:.1}L) differs from calculated ({:.1}L) by {:.1}L - possible partial fuel!",
+                                "Max fuel ({:.1}L) differs from calculated ({:.1}L) by {:.1}L - possible partial fuel!",
                                 state.latest_frame.fuel_max_ltr,
                                 calculated,
                                 diff
