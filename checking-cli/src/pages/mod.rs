@@ -85,15 +85,6 @@ pub const METRIC_CARD_HEIGHT: f32 = 96.0;
 /// plain text row, so this is not `CARD_LINE_HEIGHT`.
 pub const PROGRESS_BAR_ROW_HEIGHT: f32 = 24.0;
 
-/// Inner height of the Fuel tab status banner. The banner with data and the "collecting data"
-/// banner both use this height, so that the content below does not move when one replaces the
-/// other.
-pub const STATUS_BANNER_HEIGHT: f32 = 36.0;
-
-/// Square slot for a status icon. The icon is "", "⚠" or "✗", and these have different widths. A
-/// slot with a fixed size keeps the text after it in the same position.
-pub const STATUS_ICON_SLOT: f32 = 34.0;
-
 /// Column width for the strategy grid on the FUEL TO ADD card. It fits the `{:.3}` L/Lap values,
 /// which are the longest cells.
 const STRATEGY_GRID_COL_WIDTH: f32 = 42.0;

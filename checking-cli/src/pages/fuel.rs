@@ -7,14 +7,10 @@ use egui_plot::{Line, Plot, PlotPoints, VLine};
 
 // Color constants
 const WARNING_BACKGROUND_COLOR: Color32 = Color32::from_rgb(80, 20, 20);
-const SUCCESS_BACKGROUND_COLOR: Color32 = Color32::from_rgb(20, 60, 30);
-const CAUTION_BACKGROUND_COLOR: Color32 = Color32::from_rgb(60, 50, 20);
-const NEUTRAL_BACKGROUND_COLOR: Color32 = Color32::from_rgb(40, 40, 40);
 const CHART_BACKGROUND_COLOR: Color32 = Color32::from_rgb(25, 25, 30);
 const CHART_STROKE_COLOR: Color32 = Color32::from_rgb(60, 60, 70);
 
 const HEADER_TEXT_COLOR: Color32 = Color32::from_rgb(200, 200, 220);
-const SUCCESS_TEXT_LIGHT_COLOR: Color32 = Color32::from_rgb(150, 255, 170);
 const WARNING_TEXT_LIGHT_COLOR: Color32 = Color32::from_rgb(255, 200, 200);
 const CAUTION_TEXT_COLOR: Color32 = super::CAUTION_TEXT_COLOR;
 const PUSH_TEXT_COLOR: Color32 = Color32::from_rgb(255, 150, 150);
@@ -24,7 +20,6 @@ const CAUTION_TEXT_LIGHT_COLOR: Color32 = Color32::from_rgb(255, 220, 120);
 
 const SUCCESS_BORDER_COLOR: Color32 = Color32::from_rgb(100, 255, 120);
 const CAUTION_BORDER_COLOR: Color32 = Color32::from_rgb(255, 200, 50);
-const WARNING_BORDER_COLOR: Color32 = Color32::from_rgb(255, 80, 80);
 
 const FUEL_LEVEL_BAR_COLOR: Color32 = Color32::from_rgb(100, 200, 100);
 
@@ -269,9 +264,9 @@ pub fn render_fuel_tab(
         .show(ui, |ui| {
             // FUEL TAB CONTENT
             //
-            // All fuel and pit calculations come from `strategy::analyze`. The overlays and the
-            // strategy banner below use the same function. Read the values from
-            // `analysis`, and do not calculate them again here.
+            // All fuel and pit calculations come from `strategy::analyze`. The overlays use the
+            // same function. Read the values from `analysis`, and do not calculate them again
+            // here.
             let laps_down = state.laps_down;
             let pit_sv_fuel = state.latest_frame.pit_sv_fuel;
             let total_laps = state.get_effective_total_laps();
@@ -304,12 +299,6 @@ pub fn render_fuel_tab(
             let push_str = avg_5_push.map_or("N/A".to_string(), |v| format!("{:.3}L", v));
             let low_str = low_5_green.map_or("N/A".to_string(), |v| format!("{:.3}L", v));
             let max_str = max_single.map_or("N/A".to_string(), |v| format!("{:.3}L", v));
-
-            let laps_of = |o: Option<&crate::strategy::StrategyOutcome>| {
-                o.map_or(0.0, |o| o.laps_on_current_fuel)
-            };
-            let laps_avg = laps_of(out_avg);
-            let laps_push = laps_of(out_push);
 
             let laps_to_go = analysis.laps_to_go;
 
@@ -471,78 +460,6 @@ pub fn render_fuel_tab(
                 }
             });
             ui.add_space(8.0);
-
-            // The strategy result. This is the only part of the app that tells the driver what to
-            // do, and not only the numbers. The refuel values come from the outer `refuel_*`
-            // variables, which include the margin, so that they agree with the cards.
-            if avg_10_green.is_some() && avg_5_push.is_some() {
-                let will_make_avg = laps_avg >= laps_to_go;
-                let will_make_push = laps_push >= laps_to_go;
-
-                let (icon, text, bg_color, border_color, text_color) =
-                    if will_make_avg && will_make_push {
-                        (
-                            "",
-                            "PUSH FUEL OK",
-                            SUCCESS_BACKGROUND_COLOR,
-                            SUCCESS_BORDER_COLOR,
-                            SUCCESS_TEXT_LIGHT_COLOR,
-                        )
-                    } else if will_make_avg {
-                        (
-                            "⚠",
-                            "PUSH MARGINAL",
-                            CAUTION_BACKGROUND_COLOR,
-                            CAUTION_BORDER_COLOR,
-                            CAUTION_TEXT_LIGHT_COLOR,
-                        )
-                    } else {
-                        (
-                            "✗",
-                            "REFUEL REQUIRED",
-                            WARNING_BACKGROUND_COLOR,
-                            WARNING_BORDER_COLOR,
-                            PUSH_TEXT_COLOR,
-                        )
-                    };
-
-                egui::Frame::none()
-                    .fill(bg_color)
-                    .rounding(8.0)
-                    .inner_margin(16.0)
-                    .stroke(egui::Stroke::new(3.0_f32, border_color))
-                    .show(ui, |ui| {
-                        ui.set_min_height(super::STATUS_BANNER_HEIGHT);
-                        ui.horizontal(|ui| {
-                            // The icon is "", "⚠" or "✗", and these have different widths. A slot
-                            // with a fixed width keeps the text next to it in the same position.
-                            ui.allocate_ui(
-                                egui::vec2(super::STATUS_ICON_SLOT, super::STATUS_BANNER_HEIGHT),
-                                |ui| {
-                                    ui.label(RichText::new(icon).size(28.0).color(border_color));
-                                },
-                            );
-                            ui.label(RichText::new(text).size(20.0).strong().color(text_color));
-                        });
-                    });
-            } else {
-                egui::Frame::none()
-                    .fill(NEUTRAL_BACKGROUND_COLOR)
-                    .rounding(8.0)
-                    .inner_margin(16.0)
-                    .show(ui, |ui| {
-                        // The same height as the banner above, so that the first strategy result
-                        // does not move the page.
-                        ui.set_min_height(super::STATUS_BANNER_HEIGHT);
-                        ui.label(
-                            RichText::new("⏳ Collecting lap data...")
-                                .size(20.0)
-                                .color(Color32::GRAY),
-                        );
-                    });
-            }
-
-            ui.add_space(12.0);
 
             // Fuel use chart.
             let filtered_lap_data = state.get_filtered_fuel_data();

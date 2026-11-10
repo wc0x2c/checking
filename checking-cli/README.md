@@ -12,16 +12,6 @@ and Linux.
 - Shows a fuel table for each lap, with a color for each strategy.
 - Shows a warning when you are one or more laps behind the leader.
 
-## Status banner
-
-The banner on the fuel page shows if the fuel is sufficient to the end of the
-race:
-
-- **PUSH FUEL OK**: The fuel is sufficient at AVG and at PUSH pace.
-- **PUSH MARGINAL**: The fuel is sufficient at AVG pace, but not at PUSH pace.
-- **REFUEL REQUIRED**: You must pit. The banner shows the fuel to add for AVG
-  and for PUSH.
-
 ## Build
 
 ```bash
