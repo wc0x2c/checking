@@ -7,6 +7,7 @@ use egui::{Color32, RichText};
 use std::sync::{Arc, Mutex};
 
 mod config;
+mod lap_fuel;
 mod overlay;
 mod pages;
 mod radar;
@@ -467,7 +468,8 @@ impl FuelApp {
             );
         }
 
-        // Fuel to Add overlay: a separate viewport with a fixed size of 280x240.
+        // Fuel to Add overlay: a separate viewport with a fixed size. The lap fuel card is below the
+        // fuel to add card.
         if self.overlay_config.fuel_to_add.enabled {
             let cfg = &self.overlay_config.fuel_to_add;
 
@@ -478,7 +480,7 @@ impl FuelApp {
                 .with_resizable(false)
                 .with_always_on_top()
                 .with_transparent(true)
-                .with_inner_size([280.0, 240.0]);
+                .with_inner_size(overlay::FUEL_TO_ADD_OVERLAY_SIZE);
 
             ctx.show_viewport_immediate(
                 egui::ViewportId::from_hash_of("fuel_to_add_overlay"),
@@ -1970,7 +1972,11 @@ fn render_options_tab(
                     ui.separator();
                     ui.add_space(8.0);
                     ui.label(
-                        RichText::new("Note: Fuel to Add overlay has a fixed size of 280x240px")
+                        RichText::new(format!(
+                            "Note: Fuel to Add overlay has a fixed size of {:.0}x{:.0}px",
+                            overlay::FUEL_TO_ADD_OVERLAY_SIZE[0],
+                            overlay::FUEL_TO_ADD_OVERLAY_SIZE[1]
+                        ))
                             .size(13.0)
                             .italics()
                             .color(Color32::GRAY),

@@ -4,6 +4,7 @@ use eframe::egui;
 use egui::{Color32, RichText};
 
 use crate::config::{MinimapMode, RadarOverlayConfig, RelativeOverlayConfig};
+use crate::lap_fuel::{LapFuelView, Strategy, analyze_lap_fuel, strategy_lap_fuel};
 use crate::pages;
 use crate::pages::{AVG_COLOR, LOW_COLOR, MAX_COLOR, PUSH_COLOR};
 use crate::radar::{RadarTarget, analyze_radar, bar_bounds_px};
@@ -74,6 +75,8 @@ pub fn render_fuel_to_add_overlay(
                 fuel_capacity,
                 &rates,
             );
+            ui.add_space(LAP_FUEL_CARD_GAP);
+            render_lap_fuel_card(ui, state);
         });
 
     // Make an interactive response over all of the card area.
@@ -933,4 +936,134 @@ fn render_radar_side_indicator(ui: &mut egui::Ui, target: Option<RadarTarget>, r
             egui::Stroke::new(2.0_f32, Color32::from_rgb(100, 100, 100)),
         );
     });
+}
+
+/// Height of the row with the values of the scale ends.
+const LAP_FUEL_LABEL_ROW: f32 = 14.0;
+
+/// Height of the ticks on the lap fuel scale.
+const LAP_FUEL_TICK_HEIGHT: f32 = 30.0;
+
+/// Height of the lap fuel scale. An empty row below the ticks has the same height as the row of
+/// values above them, so that the line is in the vertical center of the card.
+const LAP_FUEL_SCALE_HEIGHT: f32 = 2.0 * LAP_FUEL_LABEL_ROW + LAP_FUEL_TICK_HEIGHT;
+
+/// Radius of the dot of the last lap.
+const LAP_FUEL_DOT_RADIUS: f32 = 6.0;
+
+/// Vertical inner margin of the lap fuel card. The horizontal margin is the margin of the fuel to
+/// add card, so that the two cards have the same width.
+const LAP_FUEL_CARD_MARGIN_Y: f32 = 10.0;
+
+/// Space between the fuel to add card and the lap fuel card.
+const LAP_FUEL_CARD_GAP: f32 = 4.0;
+
+/// Height that the lap fuel card adds to the fuel to add overlay.
+const LAP_FUEL_CARD_HEIGHT: f32 =
+    LAP_FUEL_CARD_GAP + LAP_FUEL_SCALE_HEIGHT + 2.0 * LAP_FUEL_CARD_MARGIN_Y;
+
+/// Fixed window size of the fuel to add overlay: the fuel to add card, and the lap fuel card below
+/// it.
+pub const FUEL_TO_ADD_OVERLAY_SIZE: [f32; 2] = [280.0, 240.0 + LAP_FUEL_CARD_HEIGHT];
+
+fn strategy_color(strategy: Strategy) -> Color32 {
+    match strategy {
+        Strategy::Low => LOW_COLOR,
+        Strategy::Avg => AVG_COLOR,
+        Strategy::Push => PUSH_COLOR,
+        Strategy::Max => MAX_COLOR,
+    }
+}
+
+/// The fuel that the last lap used, on a scale with the LOW, AVG, PUSH and MAX rates. The dot has
+/// the color of the nearest rate. A short line shows each lap that counts toward the strategy,
+/// from dim, the oldest, to bright, the newest, in the color of its nearest rate. The scale ends at
+/// the lowest and the highest value, and only these two values show as text.
+fn render_lap_fuel_card(ui: &mut egui::Ui, state: &AppState) {
+    let view = analyze_lap_fuel(&state.lap_snapshots, &strategy_lap_fuel(state));
+    egui::Frame::none()
+        .fill(CARD_BACKGROUND_COLOR)
+        .inner_margin(egui::Margin::symmetric(
+            pages::FUEL_TO_ADD_CARD_MARGIN_X,
+            LAP_FUEL_CARD_MARGIN_Y,
+        ))
+        .stroke(egui::Stroke::new(
+            2.0_f32,
+            pages::FUEL_TO_ADD_CARD_BORDER_COLOR,
+        ))
+        .show(ui, |ui| {
+            ui.set_width(pages::FUEL_TO_ADD_CARD_WIDTH);
+            render_lap_fuel_scale(ui, view.as_ref());
+        });
+}
+
+/// Draws the scale: the values of the two ends above the line, then the ticks and the dot on the
+/// line. Before the first lap, only the line shows.
+fn render_lap_fuel_scale(ui: &mut egui::Ui, view: Option<&LapFuelView>) {
+    let size = egui::vec2(ui.available_width(), LAP_FUEL_SCALE_HEIGHT);
+    let (rect, _) = ui.allocate_exact_size(size, egui::Sense::hover());
+    let painter = ui.painter();
+
+    let tick_top = rect.top() + LAP_FUEL_LABEL_ROW;
+    let tick_bottom = tick_top + LAP_FUEL_TICK_HEIGHT;
+    let axis_y = 0.5 * (tick_top + tick_bottom);
+    painter.hline(
+        rect.x_range(),
+        axis_y,
+        egui::Stroke::new(1.0_f32, Color32::from_gray(90)),
+    );
+
+    let Some(view) = view else {
+        return;
+    };
+
+    // The dot can be at an end of the scale, so keep it inside the overlay.
+    let left = rect.left() + LAP_FUEL_DOT_RADIUS;
+    let width = rect.width() - 2.0 * LAP_FUEL_DOT_RADIUS;
+    let x_of = |value: f32| left + view.scale.fraction(value) * width;
+
+    let font = egui::FontId::proportional(11.0);
+    painter.text(
+        egui::pos2(rect.left(), rect.top()),
+        egui::Align2::LEFT_TOP,
+        format!("{:.3}", view.scale.min),
+        font.clone(),
+        Color32::GRAY,
+    );
+    painter.text(
+        egui::pos2(rect.right(), rect.top()),
+        egui::Align2::RIGHT_TOP,
+        format!("{:.3}", view.scale.max),
+        font,
+        Color32::GRAY,
+    );
+
+    // The strategy laps are shorter and thinner than the rate ticks. The oldest lap is first, so
+    // that the newer lines are on top.
+    for lap in &view.strategy_laps {
+        let color = lap.strategy.map_or(Color32::GRAY, strategy_color);
+        painter.vline(
+            x_of(lap.fuel_used),
+            egui::Rangef::new(tick_top + 8.0, tick_bottom - 8.0),
+            egui::Stroke::new(2.0_f32, color.gamma_multiply(lap.brightness)),
+        );
+    }
+
+    for (strategy, rate) in Strategy::ALL.into_iter().zip(view.rates) {
+        if let Some(rate) = rate {
+            painter.vline(
+                x_of(rate),
+                egui::Rangef::new(tick_top, tick_bottom),
+                egui::Stroke::new(3.0_f32, strategy_color(strategy)),
+            );
+        }
+    }
+
+    let last = view.last_lap;
+    painter.circle(
+        egui::pos2(x_of(last.fuel_used), axis_y),
+        LAP_FUEL_DOT_RADIUS,
+        last.strategy.map_or(Color32::GRAY, strategy_color),
+        egui::Stroke::new(1.5_f32, Color32::WHITE),
+    );
 }

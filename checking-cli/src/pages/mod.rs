@@ -272,6 +272,15 @@ fn laps_left_margin_text(outcome: &crate::strategy::StrategyOutcome, reserve: f3
     }
 }
 
+/// Inner width of the fuel to add card. It is fixed, so that the card fits in the row of cards on
+/// the Fuel tab.
+pub const FUEL_TO_ADD_CARD_WIDTH: f32 = 250.0;
+
+/// Horizontal inner margin of the fuel to add card.
+pub const FUEL_TO_ADD_CARD_MARGIN_X: f32 = 16.0;
+
+pub const FUEL_TO_ADD_CARD_BORDER_COLOR: Color32 = Color32::from_rgb(80, 80, 100);
+
 /// The name and color of each fuel rate, from the lowest fuel use to the highest.
 const CARD_RATES: [(&str, Color32); 4] = [
     ("LOW", LOW_COLOR),
@@ -332,14 +341,14 @@ pub fn render_fuel_to_add_card(
     egui::Frame::none()
         .fill(CARD_BACKGROUND_COLOR)
         .inner_margin(egui::Margin {
-            left: 16.0,
-            right: 16.0,
+            left: FUEL_TO_ADD_CARD_MARGIN_X,
+            right: FUEL_TO_ADD_CARD_MARGIN_X,
             top: 16.0,
             bottom: 24.0, // Extra bottom margin to accommodate strategy markers below progress bar
         })
-        .stroke(egui::Stroke::new(2.0_f32, Color32::from_rgb(80, 80, 100)))
+        .stroke(egui::Stroke::new(2.0_f32, FUEL_TO_ADD_CARD_BORDER_COLOR))
         .show(ui, |ui| {
-            ui.set_width(250.0); // Fixed width for card in horizontal layout
+            ui.set_width(FUEL_TO_ADD_CARD_WIDTH);
             ui.vertical(|ui| {
                 ui.label(num(
                     format!("FUEL TO ADD ({:.2} L)", fuel_capacity),
